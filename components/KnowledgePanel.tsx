@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { BusinessProfileKey } from "@/types";
-import { businessProfiles } from "@/lib/constants";
+import { businessProfiles, knowledgeSections, type KnowledgeSectionKey } from "@/lib/constants";
 import { PermissionNotice } from "@/components/shared";
 
 type PriceItem = {
@@ -14,6 +14,7 @@ type PriceItem = {
 
 type FaqItem = {
   id: string;
+  section: KnowledgeSectionKey;
   keyword: string;
   answer: string;
 };
@@ -47,6 +48,9 @@ export function KnowledgePanel({
   const serializedFaq = useMemo(() => serializeFaqItems(faqItems), [faqItems]);
   const validPriceItems = priceItems.filter((item) => item.name.trim() || item.price.trim() || item.note.trim());
   const validFaqItems = faqItems.filter((item) => item.keyword.trim() || item.answer.trim());
+  const filledSectionCount = knowledgeSections.filter((section) =>
+    validFaqItems.some((item) => item.section === section.key),
+  ).length;
   const previewLines = [
     validPriceItems[0] ? formatPriceLine(validPriceItems[0]) : "",
     validFaqItems[0] ? `${validFaqItems[0].keyword} | ${validFaqItems[0].answer}` : "",
@@ -65,7 +69,11 @@ export function KnowledgePanel({
   }
 
   function removeFaqItem(id: string) {
-    setFaqItems((current) => ensureFaqRows(current.filter((item) => item.id !== id)));
+    setFaqItems((current) => current.filter((item) => item.id !== id));
+  }
+
+  function addFaqItem(section: KnowledgeSectionKey) {
+    setFaqItems((current) => [...current, createFaqItem(section)]);
   }
 
   function saveKnowledge() {
@@ -79,12 +87,12 @@ export function KnowledgePanel({
 
       <div className="source-scoreboard">
         <div className="source-stat-card">
-          <div className="source-stat-label">가격/서비스</div>
+          <div className="source-stat-label">견적 기준</div>
           <div className="source-stat-value">{validPriceItems.length}</div>
         </div>
         <div className="source-stat-card">
-          <div className="source-stat-label">안내 문구</div>
-          <div className="source-stat-value">{validFaqItems.length}</div>
+          <div className="source-stat-label">정책 섹션</div>
+          <div className="source-stat-value">{filledSectionCount}/{knowledgeSections.length}</div>
         </div>
         <div className="source-stat-card">
           <div className="source-stat-label">답변 소스</div>
@@ -94,7 +102,10 @@ export function KnowledgePanel({
 
       <section className="knowledge-builder-card">
         <div className="section-title-row">
-          <strong>가격/서비스 항목</strong>
+          <div>
+            <strong>견적 기준</strong>
+            <p className="section-sub">시술 종류별 가격 기준입니다. 견적 문의 답변과 AI 초안에 반영됩니다.</p>
+          </div>
           <button
             className="kb-add-btn"
             disabled={readOnly}
@@ -140,45 +151,54 @@ export function KnowledgePanel({
         </div>
       </section>
 
-      <section className="knowledge-builder-card">
-        <div className="section-title-row">
-          <strong>자주 쓰는 안내 문구</strong>
-          <button
-            className="kb-add-btn"
-            disabled={readOnly}
-            onClick={() => setFaqItems((current) => [...current, createFaqItem()])}
-          >
-            + 문구 추가
-          </button>
-        </div>
-        <div className="knowledge-item-list">
-          {faqItems.map((item, index) => (
-            <div className="knowledge-item-row faq-row" key={item.id}>
-              <span className="row-index" style={{marginTop:'5px'}}>{index + 1}</span>
-              <input
-                value={item.keyword}
-                readOnly={readOnly}
-                placeholder="키워드"
-                onChange={(event) => updateFaqItem(item.id, { keyword: event.target.value })}
-              />
-              <textarea
-                value={item.answer}
-                readOnly={readOnly}
-                placeholder="안내 문장"
-                onChange={(event) => updateFaqItem(item.id, { answer: event.target.value })}
-              />
-              <button className="kb-delete-btn" disabled={readOnly || faqItems.length <= 1} onClick={() => removeFaqItem(item.id)}>
-                삭제
+      {knowledgeSections.map((section) => {
+        const items = faqItems.filter((item) => item.section === section.key);
+        return (
+          <section className="knowledge-builder-card" key={section.key}>
+            <div className="section-title-row">
+              <div>
+                <strong>{section.label}</strong>
+                {items.filter((item) => item.keyword.trim() || item.answer.trim()).length === 0 && (
+                  <p className="section-sub">아직 문구가 없습니다. {section.placeholder}</p>
+                )}
+              </div>
+              <button className="kb-add-btn" disabled={readOnly} onClick={() => addFaqItem(section.key)}>
+                + 문구 추가
               </button>
             </div>
-          ))}
-        </div>
-      </section>
+            {items.length > 0 && (
+              <div className="knowledge-item-list">
+                {items.map((item, index) => (
+                  <div className="knowledge-item-row faq-row" key={item.id}>
+                    <span className="row-index" style={{marginTop:'5px'}}>{index + 1}</span>
+                    <input
+                      value={item.keyword}
+                      readOnly={readOnly}
+                      placeholder="키워드"
+                      onChange={(event) => updateFaqItem(item.id, { keyword: event.target.value })}
+                    />
+                    <textarea
+                      value={item.answer}
+                      readOnly={readOnly}
+                      placeholder="안내 문장"
+                      onChange={(event) => updateFaqItem(item.id, { answer: event.target.value })}
+                    />
+                    <button className="kb-delete-btn" disabled={readOnly} onClick={() => removeFaqItem(item.id)}>
+                      삭제
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      })}
 
       <div className="knowledge-preview">
         <div>
           <strong>답변에 이렇게 반영됩니다</strong>
           <p>{previewLines.length > 0 ? previewLines.join(" · ") : "항목을 입력하면 AI 초안에 참고할 매장 정보가 붙습니다."}</p>
+          <p className="section-sub">AI 초안 생성 시 문의 유형에 맞는 섹션만 골라서 참고합니다. (예: 커버업 문의 → 커버업 안내 + 작업 조건 + 예약금 정책)</p>
         </div>
         <span>{businessProfiles[profile].label}</span>
       </div>
@@ -203,14 +223,24 @@ function parsePriceItems(value: string): PriceItem[] {
 }
 
 function parseFaqItems(value: string): FaqItem[] {
-  const rows = value
-    .split(/\r?\n/)
-    .map((line, index) => {
-      const [keyword = "", ...answers] = line.split("|").map((part) => part.trim());
-      return { id: `faq-${index}-${keyword || "row"}`, keyword, answer: answers.join(" | ") };
-    })
-    .filter((item) => item.keyword || item.answer);
-  return ensureFaqRows(rows);
+  const labelToKey = new Map<string, KnowledgeSectionKey>(knowledgeSections.map((s) => [s.label, s.key]));
+  let currentSection: KnowledgeSectionKey = "other";
+  const rows: FaqItem[] = [];
+
+  value.split(/\r?\n/).forEach((raw, index) => {
+    const line = raw.trim();
+    if (!line) return;
+    const header = line.match(/^\[(.+)\]$/);
+    if (header) {
+      currentSection = labelToKey.get(header[1].trim()) ?? "other";
+      return;
+    }
+    const [keyword = "", ...answers] = line.split("|").map((part) => part.trim());
+    if (!keyword && answers.length === 0) return;
+    rows.push({ id: `faq-${index}-${keyword || "row"}`, section: currentSection, keyword, answer: answers.join(" | ") });
+  });
+
+  return rows;
 }
 
 function serializePriceItems(items: PriceItem[]) {
@@ -221,8 +251,14 @@ function serializePriceItems(items: PriceItem[]) {
 }
 
 function serializeFaqItems(items: FaqItem[]) {
-  return items
-    .map((item) => [item.keyword, item.answer].map((part) => part.trim()).filter(Boolean).join(" | "))
+  return knowledgeSections
+    .map((section) => {
+      const lines = items
+        .filter((item) => item.section === section.key)
+        .map((item) => [item.keyword, item.answer].map((part) => part.trim()).filter(Boolean).join(" | "))
+        .filter(Boolean);
+      return lines.length > 0 ? `[${section.label}]\n${lines.join("\n")}` : "";
+    })
     .filter(Boolean)
     .join("\n");
 }
@@ -235,14 +271,10 @@ function ensurePriceRows(items: PriceItem[]) {
   return items.length > 0 ? items : [createPriceItem()];
 }
 
-function ensureFaqRows(items: FaqItem[]) {
-  return items.length > 0 ? items : [createFaqItem()];
-}
-
 function createPriceItem(): PriceItem {
   return { id: `price-${Date.now()}-${Math.random().toString(36).slice(2)}`, name: "", price: "", note: "" };
 }
 
-function createFaqItem(): FaqItem {
-  return { id: `faq-${Date.now()}-${Math.random().toString(36).slice(2)}`, keyword: "", answer: "" };
+function createFaqItem(section: KnowledgeSectionKey): FaqItem {
+  return { id: `faq-${Date.now()}-${Math.random().toString(36).slice(2)}`, section, keyword: "", answer: "" };
 }

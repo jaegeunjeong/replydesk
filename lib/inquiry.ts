@@ -6,6 +6,8 @@ import {
   categoryLabels,
   forbiddenReplyWords,
   tattooStyleLabels,
+  knowledgeSections,
+  type KnowledgeSectionKey,
 } from "@/lib/constants";
 import { normalizeCustomerValue } from "@/lib/utils";
 
@@ -24,6 +26,60 @@ export const openInquiryStatuses: Status[] = ["new", "info_requested", "quoted",
 
 export function isOpenInquiryStatus(status: Status) {
   return openInquiryStatuses.includes(status);
+}
+
+// faq 텍스트를 "[섹션 라벨]" 헤더 기준으로 나눈다. 헤더 없는 내용(구버전 데이터)은 기타 안내로 들어간다.
+export function parseFaqSections(value: string): Record<KnowledgeSectionKey, string> {
+  const buckets = Object.fromEntries(knowledgeSections.map((s) => [s.key, [] as string[]])) as Record<
+    KnowledgeSectionKey,
+    string[]
+  >;
+  const labelToKey = new Map<string, KnowledgeSectionKey>(knowledgeSections.map((s) => [s.label, s.key]));
+  let current: KnowledgeSectionKey = "other";
+
+  for (const raw of value.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    const header = line.match(/^\[(.+)\]$/);
+    if (header) {
+      current = labelToKey.get(header[1].trim()) ?? "other";
+      continue;
+    }
+    buckets[current].push(line);
+  }
+
+  return Object.fromEntries(
+    knowledgeSections.map((s) => [s.key, buckets[s.key].join("\n")]),
+  ) as Record<KnowledgeSectionKey, string>;
+}
+
+export function serializeFaqSections(sections: Record<KnowledgeSectionKey, string>): string {
+  return knowledgeSections
+    .map(({ key, label }) => {
+      const content = (sections[key] ?? "").trim();
+      return content ? `[${label}]\n${content}` : "";
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+// AI 초안에 넘길 섹션을 문의 유형과 생성 옵션 기준으로 고른다.
+export function getRelevantFaqSectionKeys(
+  category: Category,
+  options?: { includeDeposit?: boolean; includeAftercare?: boolean },
+): KnowledgeSectionKey[] {
+  const byCategory: Record<Category, KnowledgeSectionKey[]> = {
+    quote: ["conditions", "deposit"],
+    booking: ["deposit", "before"],
+    coverup: ["coverup", "conditions", "deposit"],
+    retouch: ["retouch", "deposit"],
+    aftercare: ["aftercare", "retouch"],
+    general: ["deposit"],
+  };
+  const keys = new Set<KnowledgeSectionKey>([...byCategory[category], "other"]);
+  if (options?.includeDeposit) keys.add("deposit");
+  if (options?.includeAftercare) keys.add("aftercare");
+  return knowledgeSections.map((s) => s.key).filter((key) => keys.has(key));
 }
 
 export type ConsultChecklist = {

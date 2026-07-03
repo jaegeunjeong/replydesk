@@ -36,6 +36,7 @@ import {
   tattooStyleLabels,
   channelOptions,
   statusLabels,
+  knowledgeSections,
 } from "@/lib/constants";
 
 import {
@@ -51,6 +52,8 @@ import {
   isOpenInquiryStatus,
   customerStatusForInquiryStatus,
   getConsultChecklist,
+  parseFaqSections,
+  getRelevantFaqSectionKeys,
   type TattooFields,
 } from "@/lib/inquiry";
 
@@ -720,6 +723,13 @@ export default function ReplyDeskPage() {
     setAiStatus("AI 답변 초안을 생성하는 중입니다.");
     const profileKnowledge = knowledge[selected.profile] ?? knowledge[settings.businessProfile];
     const checklist = getConsultChecklist(selected);
+    // 문의 유형과 생성 옵션에 맞는 지식베이스 섹션만 AI 컨텍스트로 넘긴다.
+    const faqSections = parseFaqSections(profileKnowledge.faq);
+    const relevantKeys = getRelevantFaqSectionKeys(selected.category, options);
+    const faqContext = knowledgeSections
+      .filter((section) => relevantKeys.includes(section.key) && faqSections[section.key].trim())
+      .map((section) => `[${section.label}]\n${faqSections[section.key].trim()}`)
+      .join("\n\n");
     const payload = {
       businessLabel: businessProfiles[selected.profile].label,
       toneLabel: toneProfiles[selected.tone].label,
@@ -731,7 +741,7 @@ export default function ReplyDeskPage() {
       message: selected.message,
       currentReply: selected.reply,
       prices: profileKnowledge.prices,
-      faq: profileKnowledge.faq,
+      faq: faqContext,
       tattooArea: selected.tattooArea ?? undefined,
       tattooSize: selected.tattooSize ?? undefined,
       tattooStyle: selected.tattooStyle ? (tattooStyleLabels[selected.tattooStyle] ?? selected.tattooStyle) : undefined,
