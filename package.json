@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "db:schema": "node scripts/apply-schema.mjs",
+    "db:seed": "node scripts/seed-demo.mjs",
     "test:e2e": "node scripts/e2e-smoke.mjs",
     "typecheck": "tsc --noEmit"
   },
