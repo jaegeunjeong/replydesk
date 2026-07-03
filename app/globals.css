@@ -3309,11 +3309,15 @@ select {
   border-radius: 999px;
 }
 
-.row-bar.new       { background: var(--accent); }
-.row-bar.drafted   { background: #7c6fcd; }
-.row-bar.pending   { background: var(--warning); }
-.row-bar.escalated { background: var(--danger); }
-.row-bar.done      { background: var(--success); }
+.row-bar.new             { background: var(--accent); }
+.row-bar.info-requested  { background: var(--warning); }
+.row-bar.quoted          { background: #7c6fcd; }
+.row-bar.deposit-pending { background: #d98324; }
+.row-bar.booked          { background: var(--success); }
+.row-bar.completed       { background: #1d8f4e; }
+.row-bar.aftercare       { background: #2f9e9b; }
+.row-bar.closed          { background: #9aa19d; }
+.row-bar.done            { background: var(--success); }
 
 .report-customer-list {
   display: flex;

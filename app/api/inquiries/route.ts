@@ -30,6 +30,7 @@ type InquiryPayload = {
   isCoverup?: boolean;
   sessionCount?: number | null;
   quotedPrice?: string | null;
+  preferredDate?: string | null;
 };
 
 export async function GET(request: NextRequest) {
@@ -69,7 +70,8 @@ export async function GET(request: NextRequest) {
       tattoo_style as "tattooStyle",
       is_coverup as "isCoverup",
       session_count as "sessionCount",
-      quoted_price as "quotedPrice"
+      quoted_price as "quotedPrice",
+      preferred_date as "preferredDate"
     from inquiries
     where workspace_id = $1
     order by created_at desc
@@ -163,6 +165,7 @@ export async function POST(request: NextRequest) {
           is_coverup,
           session_count,
           quoted_price,
+          preferred_date,
           created_at,
           updated_at
         )
@@ -172,7 +175,7 @@ export async function POST(request: NextRequest) {
           $11, $12, $13, $14, $15,
           $16, $17, $18::jsonb, $19::jsonb,
           $20, $21, $22::jsonb,
-          $23, $24, $25, $26, $27, $28,
+          $23, $24, $25, $26, $27, $28, $29,
           now(), now()
         )
         on conflict (id) do update set
@@ -202,6 +205,7 @@ export async function POST(request: NextRequest) {
           is_coverup = excluded.is_coverup,
           session_count = excluded.session_count,
           quoted_price = excluded.quoted_price,
+          preferred_date = excluded.preferred_date,
           updated_at = now()
         `,
         [
@@ -233,6 +237,7 @@ export async function POST(request: NextRequest) {
           inquiry.isCoverup || false,
           inquiry.sessionCount || null,
           inquiry.quotedPrice || null,
+          inquiry.preferredDate || null,
         ],
       );
     }

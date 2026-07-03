@@ -27,7 +27,7 @@ export function DetailPanel({
   onSaveReply: (id: string, reply: string) => void;
   onUpdateOperations: (
     id: string,
-    patch: Partial<Pick<Inquiry, "status" | "priority" | "assigneeId" | "internalNote" | "tattooArea" | "tattooSize" | "tattooStyle" | "isCoverup" | "sessionCount" | "quotedPrice">>,
+    patch: Partial<Pick<Inquiry, "status" | "priority" | "assigneeId" | "internalNote" | "tattooArea" | "tattooSize" | "tattooStyle" | "isCoverup" | "sessionCount" | "quotedPrice" | "preferredDate">>,
     label: string,
   ) => void;
   onDelete: (id: string) => void;
@@ -45,6 +45,7 @@ export function DetailPanel({
     quotedPrice: "",
     sessionCount: null as number | null,
     isCoverup: false,
+    preferredDate: "",
   });
 
   useEffect(() => {
@@ -57,8 +58,9 @@ export function DetailPanel({
       quotedPrice: selected?.quotedPrice ?? "",
       sessionCount: selected?.sessionCount ?? null,
       isCoverup: selected?.isCoverup ?? false,
+      preferredDate: selected?.preferredDate ?? "",
     });
-  }, [selected?.id, selected?.reply, selected?.internalNote, selected?.tattooArea, selected?.tattooSize, selected?.tattooStyle, selected?.quotedPrice, selected?.sessionCount, selected?.isCoverup]);
+  }, [selected?.id, selected?.reply, selected?.internalNote, selected?.tattooArea, selected?.tattooSize, selected?.tattooStyle, selected?.quotedPrice, selected?.sessionCount, selected?.isCoverup, selected?.preferredDate]);
 
   if (!selected) {
     return (
@@ -127,10 +129,10 @@ export function DetailPanel({
           </button>
           <button
             className="secondary"
-            disabled={!canUpdate || selected.status === "done"}
-            onClick={() => onUpdateOperations(selected.id, { status: "done" }, "처리 완료")}
+            disabled={!canUpdate || ["booked", "completed", "aftercare", "closed"].includes(selected.status)}
+            onClick={() => onUpdateOperations(selected.id, { status: "booked" }, "예약 확정")}
           >
-            처리 완료
+            예약 확정
           </button>
         </div>
       </section>
@@ -139,11 +141,15 @@ export function DetailPanel({
         <div>
           <strong>다음 행동</strong>
           <span>
-            {selected.status === "done"
-              ? "이미 처리 완료된 문의입니다."
-              : replyChanged
-                ? "수정한 답변을 저장한 뒤 고객에게 복사해 보내세요."
-                : "답변을 복사해 고객에게 보낸 뒤 처리 완료로 바꾸세요."}
+            {selected.status === "closed"
+              ? "상담이 종료된 문의입니다."
+              : selected.status === "booked"
+                ? "예약이 확정된 상담입니다. 시술 후 상태를 시술 완료로 바꾸세요."
+                : selected.status === "completed" || selected.status === "aftercare"
+                  ? "시술이 끝난 고객입니다. 관리 안내 후 상담 종료로 바꾸세요."
+                  : replyChanged
+                    ? "수정한 답변을 저장한 뒤 고객에게 복사해 보내세요."
+                    : "답변을 보낸 뒤 상태를 다음 단계(정보 요청·견적 안내·예약금 대기)로 옮기세요."}
           </span>
         </div>
         <button
@@ -282,6 +288,15 @@ export function DetailPanel({
               />
             </label>
             <label>
+              희망 시술일
+              <input
+                value={tattooDraft.preferredDate}
+                readOnly={!canUpdate}
+                placeholder="예: 7/20 오후, 다음주 토요일"
+                onChange={(e) => setTattooDraft({ ...tattooDraft, preferredDate: e.target.value })}
+              />
+            </label>
+            <label>
               세션 수
               <input
                 type="number"
@@ -313,7 +328,8 @@ export function DetailPanel({
                   tattooDraft.tattooStyle === (selected.tattooStyle ?? "") &&
                   tattooDraft.quotedPrice === (selected.quotedPrice ?? "") &&
                   tattooDraft.sessionCount === (selected.sessionCount ?? null) &&
-                  tattooDraft.isCoverup === (selected.isCoverup ?? false))
+                  tattooDraft.isCoverup === (selected.isCoverup ?? false) &&
+                  tattooDraft.preferredDate === (selected.preferredDate ?? ""))
               }
               onClick={() =>
                 onUpdateOperations(
@@ -325,6 +341,7 @@ export function DetailPanel({
                     quotedPrice: tattooDraft.quotedPrice || null,
                     sessionCount: tattooDraft.sessionCount,
                     isCoverup: tattooDraft.isCoverup,
+                    preferredDate: tattooDraft.preferredDate || null,
                   },
                   "시술 정보 수정",
                 )

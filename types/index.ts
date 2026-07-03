@@ -1,7 +1,15 @@
 import type { WorkspaceRole } from "@/lib/permissions";
 
 export type Category = "quote" | "booking" | "coverup" | "retouch" | "aftercare" | "general";
-export type Status = "new" | "drafted" | "pending" | "escalated" | "done";
+export type Status =
+  | "new"
+  | "info_requested"
+  | "quoted"
+  | "deposit_pending"
+  | "booked"
+  | "completed"
+  | "aftercare"
+  | "closed";
 export type BusinessProfileKey = "tattoo";
 export type ToneKey = "warm" | "concise" | "premium";
 export type ResponseWindowKey = "fast" | "same-day" | "next-business";
@@ -64,6 +72,7 @@ export type Inquiry = {
   isCoverup?: boolean;
   sessionCount?: number | null;
   quotedPrice?: string | null;
+  preferredDate?: string | null;
 };
 
 export type Settings = {

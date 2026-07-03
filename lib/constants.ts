@@ -28,11 +28,14 @@ export const categoryLabels = {
 } as const;
 
 export const statusLabels = {
-  new: "\uC0C8 \uBB38\uC758",
-  drafted: "\uCD08\uC548 \uC644\uB8CC",
-  pending: "\uBCF4\uB958",
-  escalated: "\uD655\uC778 \uD544\uC694",
-  done: "\uCC98\uB9AC \uC644\uB8CC",
+  new: "\uC2E0\uADDC \uBB38\uC758",
+  info_requested: "\uC815\uBCF4 \uC694\uCCAD",
+  quoted: "\uACAC\uC801 \uC548\uB0B4",
+  deposit_pending: "\uC608\uC57D\uAE08 \uB300\uAE30",
+  booked: "\uC608\uC57D \uD655\uC815",
+  completed: "\uC2DC\uC220 \uC644\uB8CC",
+  aftercare: "\uB9AC\uD130\uCE58/\uAD00\uB9AC",
+  closed: "\uC0C1\uB2F4 \uC885\uB8CC",
 } as const;
 
 export const customerStatusLabels: Record<CustomerStatus, string> = {

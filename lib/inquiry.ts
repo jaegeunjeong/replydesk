@@ -1,4 +1,4 @@
-import type { Inquiry, Category, AiQualityReport, InquiryTimelineItem, Settings, Knowledge, TattooStyle } from "@/types";
+import type { Inquiry, Category, AiQualityReport, InquiryTimelineItem, Settings, Knowledge, TattooStyle, Status, CustomerStatus } from "@/types";
 import {
   businessProfiles,
   toneProfiles,
@@ -15,7 +15,31 @@ export type TattooFields = {
   isCoverup?: boolean;
   sessionCount?: number | null;
   quotedPrice?: string | null;
+  preferredDate?: string | null;
 };
+
+// 응대가 필요한(아직 예약 전환 전이거나 관리 문의인) 상태
+export const openInquiryStatuses: Status[] = ["new", "info_requested", "quoted", "deposit_pending", "aftercare"];
+
+export function isOpenInquiryStatus(status: Status) {
+  return openInquiryStatuses.includes(status);
+}
+
+// 문의 상태가 파이프라인을 진행할 때 고객 상태를 함께 끌어올린다.
+export function customerStatusForInquiryStatus(status: Status): CustomerStatus | null {
+  switch (status) {
+    case "quoted":
+    case "deposit_pending":
+      return "consulted";
+    case "booked":
+      return "booked";
+    case "completed":
+    case "aftercare":
+      return "completed";
+    default:
+      return null;
+  }
+}
 
 export function createInquiry(line: string, settings: Settings, knowledge: Knowledge, tattoo?: TattooFields): Inquiry {
   const parts = line.split("|").map((part) => part.trim());
@@ -30,7 +54,7 @@ export function createInquiry(line: string, settings: Settings, knowledge: Knowl
   return {
     id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
-    status: "drafted",
+    status: "new",
     profile: settings.businessProfile,
     tone: settings.toneProfile,
     responseWindow: settings.responseWindow,
@@ -54,6 +78,7 @@ export function createInquiry(line: string, settings: Settings, knowledge: Knowl
     isCoverup: tattoo?.isCoverup ?? false,
     sessionCount: tattoo?.sessionCount ?? null,
     quotedPrice: tattoo?.quotedPrice ?? null,
+    preferredDate: tattoo?.preferredDate ?? null,
     ...base,
   };
 }
@@ -159,12 +184,17 @@ export function normalizeKeywords(values: string[]) {
 }
 
 export function getCounts(inquiries: Inquiry[]) {
+  const byStatus = (status: Status) => inquiries.filter((i) => i.status === status).length;
   return {
-    new: inquiries.filter((i) => i.status === "new").length,
-    drafted: inquiries.filter((i) => i.status === "drafted").length,
-    pending: inquiries.filter((i) => i.status === "pending").length,
-    escalated: inquiries.filter((i) => i.status === "escalated").length,
-    done: inquiries.filter((i) => i.status === "done").length,
+    new: byStatus("new"),
+    info_requested: byStatus("info_requested"),
+    quoted: byStatus("quoted"),
+    deposit_pending: byStatus("deposit_pending"),
+    booked: byStatus("booked"),
+    completed: byStatus("completed"),
+    aftercare: byStatus("aftercare"),
+    closed: byStatus("closed"),
+    open: inquiries.filter((i) => isOpenInquiryStatus(i.status)).length,
     quote: inquiries.filter((i) => i.category === "quote").length,
     booking: inquiries.filter((i) => i.category === "booking").length,
     urgent: inquiries.filter((i) => i.priority === "\uAE34\uAE09").length,
@@ -176,11 +206,13 @@ export function getSummary(inquiries: Inquiry[], settings: Settings) {
   const topCategory = Object.entries(categoryLabels)
     .map(([key, label]) => ({ label, count: inquiries.filter((i) => i.category === key).length }))
     .sort((a, b) => b.count - a.count)[0];
-  const openCount = inquiries.filter((i) => i.status !== "done").length;
+  const openCount = inquiries.filter((i) => isOpenInquiryStatus(i.status)).length;
+  const bookedCount = inquiries.filter((i) => i.status === "booked").length;
   const urgentCount = inquiries.filter((i) => i.priority === "\uAE34\uAE09").length;
   const repeatCount = getCustomerGroups(inquiries).filter((group) => group.items.length >= 2).length;
   return [
-    `\uBBF8\uCC98\uB9AC \uBB38\uC758 ${openCount}\uAC74`,
+    `\uC751\uB300 \uD544\uC694 \uBB38\uC758 ${openCount}\uAC74`,
+    `\uC608\uC57D \uD655\uC815 ${bookedCount}\uAC74`,
     `\uAC00\uC7A5 \uB9CE\uC740 \uC720\uD615: ${topCategory.label} ${topCategory.count}\uAC74`,
     `\uAE34\uAE09 \uBB38\uC758 ${urgentCount}\uAC74`,
     `\uC7AC\uBB38\uC758 \uACE0\uAC1D ${repeatCount}\uBA85`,

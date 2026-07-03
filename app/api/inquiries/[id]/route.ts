@@ -51,6 +51,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       is_coverup = coalesce($23, is_coverup),
       session_count = coalesce($24, session_count),
       quoted_price = coalesce($25, quoted_price),
+      preferred_date = coalesce($26, preferred_date),
       updated_at = now()
     where id = $1
       and workspace_id = $2
@@ -82,7 +83,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       tattoo_style as "tattooStyle",
       is_coverup as "isCoverup",
       session_count as "sessionCount",
-      quoted_price as "quotedPrice"
+      quoted_price as "quotedPrice",
+      preferred_date as "preferredDate"
     `,
     [
       id,
@@ -110,6 +112,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       body.isCoverup ?? null,
       body.sessionCount ?? null,
       body.quotedPrice ?? null,
+      body.preferredDate ?? null,
     ],
   );
 

@@ -221,7 +221,7 @@ async function main() {
       priority: "긴급",
       keywords: ["예약", "가격"],
       reply: "확인 후 안내드리겠습니다.",
-      status: "drafted",
+      status: "quoted",
       profile,
       tone: cleanup.settings.toneProfile,
       responseWindow: cleanup.settings.responseWindow,
@@ -237,6 +237,7 @@ async function main() {
       isCoverup: false,
       sessionCount: 1,
       quotedPrice: "80,000원~",
+      preferredDate: "다음주 토요일 오후",
     },
   });
   cleanup.inquiryCreated = true;
@@ -253,18 +254,20 @@ async function main() {
   const patchedInquiry = await request(`/api/inquiries/${encodeURIComponent(inquiryId)}`, {
     method: "PATCH",
     body: {
-      status: "pending",
+      status: "deposit_pending",
       priority: "보통",
       assigneeId: "demo-agent",
       internalNote: `E2E note ${testRun}`,
       reply: `E2E reply ${testRun}`,
+      preferredDate: "7/20 오후",
       timeline: [{ id: `tl-${testRun}`, actor: "E2E", label: "smoke test" }],
     },
   });
   assert(
-    patchedInquiry.data.inquiry.status === "pending" &&
+    patchedInquiry.data.inquiry.status === "deposit_pending" &&
       patchedInquiry.data.inquiry.priority === "보통" &&
-      patchedInquiry.data.inquiry.assigneeId === "demo-agent",
+      patchedInquiry.data.inquiry.assigneeId === "demo-agent" &&
+      patchedInquiry.data.inquiry.preferredDate === "7/20 오후",
     "Inquiry update",
   );
 

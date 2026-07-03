@@ -19,6 +19,7 @@ type GenerateReplyPayload = {
   tattooStyle?: string;
   isCoverup?: boolean;
   sessionCount?: number;
+  preferredDate?: string;
 };
 
 export async function POST(request: NextRequest) {
@@ -85,6 +86,7 @@ function buildPrompt(body: GenerateReplyPayload) {
   if (body.tattooStyle) lines.push(`스타일: ${body.tattooStyle}`);
   if (body.isCoverup) lines.push(`커버업 여부: 예`);
   if (body.sessionCount) lines.push(`예상 세션: ${body.sessionCount}회`);
+  if (body.preferredDate) lines.push(`희망 시술일: ${body.preferredDate}`);
 
   lines.push(
     "",

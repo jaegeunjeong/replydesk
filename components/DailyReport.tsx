@@ -8,28 +8,37 @@ type DailyReportData = {
   date: string;
   today: {
     total: number;
-    done: number;
+    converted: number;
     open: number;
     urgent: number;
     new: number;
-    drafted: number;
-    pending: number;
-    escalated: number;
+    infoRequested: number;
+    quoted: number;
+    depositPending: number;
+    booked: number;
+    completed: number;
+    aftercare: number;
+    closed: number;
   };
   all: {
     open: number;
-    done: number;
+    booked: number;
+    completed: number;
+    closed: number;
   };
   topCategories: { category: string; cnt: number }[];
   repeatCustomers: { name: string; cnt: number }[];
 };
 
 const STATUS_ROWS: { key: keyof DailyReportData["today"]; label: string; bar: string }[] = [
-  { key: "new",       label: "새 문의",    bar: "new" },
-  { key: "drafted",   label: "초안 완료",  bar: "drafted" },
-  { key: "pending",   label: "보류",       bar: "pending" },
-  { key: "escalated", label: "상위 확인",  bar: "escalated" },
-  { key: "done",      label: "처리 완료",  bar: "done" },
+  { key: "new",            label: "신규 문의",    bar: "new" },
+  { key: "infoRequested",  label: "정보 요청",    bar: "info-requested" },
+  { key: "quoted",         label: "견적 안내",    bar: "quoted" },
+  { key: "depositPending", label: "예약금 대기",  bar: "deposit-pending" },
+  { key: "booked",         label: "예약 확정",    bar: "booked" },
+  { key: "completed",      label: "시술 완료",    bar: "completed" },
+  { key: "aftercare",      label: "리터치/관리",  bar: "aftercare" },
+  { key: "closed",         label: "상담 종료",    bar: "closed" },
 ];
 
 export function DailyReport() {
@@ -52,7 +61,7 @@ export function DailyReport() {
   if (loading) return <div className="report-loading">리포트 집계 중…</div>;
   if (error || !report) return <div className="report-error">{error || "리포트 없음"}</div>;
 
-  const doneRate = report.today.total > 0 ? Math.round((report.today.done / report.today.total) * 100) : 0;
+  const conversionRate = report.today.total > 0 ? Math.round((report.today.converted / report.today.total) * 100) : 0;
   const maxCat = report.topCategories[0]?.cnt ?? 1;
 
   return (
@@ -64,11 +73,11 @@ export function DailyReport() {
           <div className="stat-value">{report.today.total}<span className="stat-unit">건</span></div>
         </div>
         <div className="report-hero-stat done">
-          <div className="stat-label">처리 완료</div>
-          <div className="stat-value" style={{color:'#1d8f4e'}}>{report.today.done}<span className="stat-unit">건</span></div>
+          <div className="stat-label">예약 확정</div>
+          <div className="stat-value" style={{color:'#1d8f4e'}}>{report.today.booked}<span className="stat-unit">건</span></div>
         </div>
         <div className="report-hero-stat warn">
-          <div className="stat-label">미처리</div>
+          <div className="stat-label">응대 필요</div>
           <div className="stat-value" style={{color:'#b87d14'}}>{report.today.open}<span className="stat-unit">건</span></div>
         </div>
         <div className="report-hero-stat urgent">
@@ -80,15 +89,15 @@ export function DailyReport() {
       {/* 처리율 바 */}
       <section className="report-rate-card">
         <div className="report-rate-header">
-          <strong>오늘 처리율</strong>
-          <span className="report-rate-pct">{doneRate}%</span>
+          <strong>오늘 예약 전환율</strong>
+          <span className="report-rate-pct">{conversionRate}%</span>
         </div>
         <div className="report-bar-track">
-          <div className="report-bar-fill" style={{ width: `${doneRate}%` }} />
+          <div className="report-bar-fill" style={{ width: `${conversionRate}%` }} />
         </div>
         <div className="report-rate-sub">
-          <span>완료 <strong style={{color:'#1d8f4e'}}>{report.today.done}건</strong></span>
-          <span>미처리 <strong style={{color:'#b87d14'}}>{report.today.open}건</strong></span>
+          <span>예약/시술 <strong style={{color:'#1d8f4e'}}>{report.today.converted}건</strong></span>
+          <span>응대 필요 <strong style={{color:'#b87d14'}}>{report.today.open}건</strong></span>
           {report.today.urgent > 0 && <span>긴급 <strong style={{color:'#c03a3a'}}>{report.today.urgent}건</strong></span>}
         </div>
       </section>
@@ -168,16 +177,20 @@ export function DailyReport() {
           <strong className="report-card-title">전체 누적</strong>
           <div className="report-total-list">
             <div className="report-total-row">
-              <span>미처리</span>
+              <span>응대 필요</span>
               <strong style={{color:'#b87d14'}}>{report.all.open}건</strong>
             </div>
             <div className="report-total-row">
-              <span>완료</span>
-              <strong style={{color:'#1d8f4e'}}>{report.all.done}건</strong>
+              <span>예약 확정</span>
+              <strong style={{color:'#1d8f4e'}}>{report.all.booked}건</strong>
+            </div>
+            <div className="report-total-row">
+              <span>시술 완료</span>
+              <strong style={{color:'#1d8f4e'}}>{report.all.completed}건</strong>
             </div>
             <div className="report-total-row divider">
               <span>누적</span>
-              <strong>{report.all.open + report.all.done}건</strong>
+              <strong>{report.all.open + report.all.booked + report.all.completed + report.all.closed}건</strong>
             </div>
           </div>
         </div>
@@ -188,8 +201,8 @@ export function DailyReport() {
         <section className="report-action-hint">
           <span className="report-action-hint-icon">!</span>
           <div>
-            <strong>미처리 {report.today.open}건이 남아 있습니다</strong>
-            <p>문의 탭에서 미처리 필터로 바로 확인하세요.</p>
+            <strong>응대가 필요한 상담 {report.today.open}건이 남아 있습니다</strong>
+            <p>상담 처리 탭에서 신규 문의·예약금 대기 상태를 확인하세요.</p>
           </div>
         </section>
       )}

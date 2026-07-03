@@ -35,6 +35,7 @@ import {
   manageableRoles,
   tattooStyleLabels,
   channelOptions,
+  statusLabels,
 } from "@/lib/constants";
 
 import {
@@ -47,6 +48,8 @@ import {
   appendTimeline,
   analyzeAiQuality,
   summarizeReplyRevision,
+  isOpenInquiryStatus,
+  customerStatusForInquiryStatus,
   type TattooFields,
 } from "@/lib/inquiry";
 
@@ -139,6 +142,7 @@ export default function ReplyDeskPage() {
     tattooSize: "",
     tattooStyle: "" as TattooStyle | "",
     isCoverup: false,
+    preferredDate: "",
   });
 
   useEffect(() => {
@@ -190,9 +194,10 @@ export default function ReplyDeskPage() {
     [categoryFilter, customerFilter, inquiries, statusFilter],
   );
   const summary = getSummary(inquiries, settings);
-  const sidebarPending = inquiries.filter((i) => i.status !== "done").length;
-  const sidebarUrgent = inquiries.filter((i) => i.priority === "긴급" && i.status !== "done").length;
-  const sidebarDone = inquiries.filter((i) => i.status === "done").length;
+  const sidebarOpen = inquiries.filter((i) => isOpenInquiryStatus(i.status)).length;
+  const sidebarUrgent = inquiries.filter((i) => i.priority === "긴급" && isOpenInquiryStatus(i.status)).length;
+  const sidebarDepositPending = counts.deposit_pending;
+  const sidebarBooked = counts.booked;
   const currentKnowledge = knowledge[settings.businessProfile] ?? defaultKnowledge[settings.businessProfile];
 
   // --- Actions ---
@@ -245,11 +250,12 @@ export default function ReplyDeskPage() {
       tattooSize: formDraft.tattooSize || null,
       tattooStyle: (formDraft.tattooStyle || null) as TattooStyle | null,
       isCoverup: formDraft.isCoverup,
+      preferredDate: formDraft.preferredDate || null,
     };
     const created = [createInquiry(line, settings, knowledge, tattoo)];
     setInquiries((current) => [...created, ...current]);
     setSelectedId(created[0].id);
-    setFormDraft({ customer: "", channel: "인스타 DM", message: "", tattooArea: "", tattooSize: "", tattooStyle: "", isCoverup: false });
+    setFormDraft({ customer: "", channel: "인스타 DM", message: "", tattooArea: "", tattooSize: "", tattooStyle: "", isCoverup: false, preferredDate: "" });
     void saveInquiriesToDatabase(created);
   }
 
@@ -278,9 +284,20 @@ export default function ReplyDeskPage() {
     }
     const next = inquiries.find((i) => i.id === id);
     if (!next) return;
-    const updated = { ...next, status, timeline: appendTimeline(next, activeUserName, `상태 변경: ${status}`) };
+    const updated = { ...next, status, timeline: appendTimeline(next, activeUserName, `상태 변경: ${statusLabels[status]}`) };
     setInquiries((current) => current.map((i) => (i.id === id ? updated : i)));
     void patchInquiryInDatabase(id, { status, timeline: updated.timeline });
+    syncCustomerFromInquiryStatus(next, status);
+  }
+
+  // 문의 파이프라인 진행에 맞춰 연결된 고객 카드 상태를 자동 갱신한다.
+  function syncCustomerFromInquiryStatus(inquiry: Inquiry, status: Status) {
+    const mapped = customerStatusForInquiryStatus(status);
+    if (!mapped || !inquiry.customerId) return;
+    const target = customers.find((c) => c.id === inquiry.customerId);
+    if (!target || target.status === mapped) return;
+    setCustomers((current) => current.map((c) => (c.id === inquiry.customerId ? { ...c, status: mapped } : c)));
+    void patchCustomerInDatabase(inquiry.customerId, { status: mapped });
   }
 
   function updateInquiryReply(id: string, reply: string) {
@@ -309,7 +326,7 @@ export default function ReplyDeskPage() {
 
   function updateInquiryOperations(
     id: string,
-    patch: Partial<Pick<Inquiry, "status" | "priority" | "assigneeId" | "internalNote" | "tattooArea" | "tattooSize" | "tattooStyle" | "isCoverup" | "sessionCount" | "quotedPrice">>,
+    patch: Partial<Pick<Inquiry, "status" | "priority" | "assigneeId" | "internalNote" | "tattooArea" | "tattooSize" | "tattooStyle" | "isCoverup" | "sessionCount" | "quotedPrice" | "preferredDate">>,
     label: string,
   ) {
     if (!canUpdateInquiry) {
@@ -321,6 +338,7 @@ export default function ReplyDeskPage() {
     const updated = { ...next, ...patch, timeline: appendTimeline(next, activeUserName, label) };
     setInquiries((current) => current.map((i) => (i.id === id ? updated : i)));
     void patchInquiryInDatabase(id, { ...patch, timeline: updated.timeline });
+    if (patch.status) syncCustomerFromInquiryStatus(next, patch.status);
   }
 
   function updateCustomerProfile(id: string, patch: Partial<Pick<Customer, "status" | "tags" | "note" | "skinNotes">>) {
@@ -717,6 +735,7 @@ export default function ReplyDeskPage() {
       tattooStyle: selected.tattooStyle ? (tattooStyleLabels[selected.tattooStyle] ?? selected.tattooStyle) : undefined,
       isCoverup: selected.isCoverup ?? undefined,
       sessionCount: selected.sessionCount ?? undefined,
+      preferredDate: selected.preferredDate ?? undefined,
     };
 
     const res = await fetch("/api/generate-reply", {
@@ -836,17 +855,18 @@ export default function ReplyDeskPage() {
                 <strong>{view.label}</strong>
                 <small>{view.description}</small>
               </span>
-              {view.key === "inbox" && sidebarPending > 0 && <span>{sidebarPending}</span>}
+              {view.key === "inbox" && sidebarOpen > 0 && <span>{sidebarOpen}</span>}
               {view.key === "customers" && customers.length > 0 && <span>{customers.length}</span>}
             </button>
           ))}
         </nav>
         <div className="side-panel">
-          <p className="label">오늘 요약</p>
+          <p className="label">상담 현황</p>
           <div className="summary-rows">
-            <div className="summary-row"><span>미처리</span><strong>{sidebarPending}건</strong></div>
+            <div className="summary-row"><span>응대 필요</span><strong>{sidebarOpen}건</strong></div>
+            <div className="summary-row"><span>예약금 대기</span><strong>{sidebarDepositPending}건</strong></div>
+            <div className="summary-row"><span>예약 확정</span><strong className="done">{sidebarBooked}건</strong></div>
             <div className="summary-row"><span>긴급</span><strong className="urgent">{sidebarUrgent}건</strong></div>
-            <div className="summary-row"><span>처리 완료</span><strong className="done">{sidebarDone}건</strong></div>
           </div>
         </div>
       </aside>
@@ -924,16 +944,16 @@ export default function ReplyDeskPage() {
             <section className="inbox-brief" aria-label="오늘 처리할 문의">
               <div>
                 <p className="eyebrow">Today</p>
-                <h3>오늘 처리할 문의</h3>
+                <h3>오늘 처리할 상담</h3>
                 <p>
-                  미처리 {inquiries.filter((i) => i.status !== "done").length}건 중 긴급 {counts.urgent}건이 있습니다.
+                  응대 필요 {counts.open}건 · 예약금 대기 {counts.deposit_pending}건 · 예약 확정 {counts.booked}건입니다.
                 </p>
               </div>
               <div className="brief-metrics">
-                <Metric label="미처리" value={inquiries.filter((i) => i.status !== "done").length} />
-                <Metric label="답변 준비" value={counts.drafted} />
-                <Metric label="긴급" value={counts.urgent} />
-                <Metric label="고객" value={customers.length} />
+                <Metric label="응대 필요" value={counts.open} />
+                <Metric label="견적 안내" value={counts.quoted} />
+                <Metric label="예약금 대기" value={counts.deposit_pending} />
+                <Metric label="예약 확정" value={counts.booked} />
               </div>
             </section>
 
@@ -1003,6 +1023,10 @@ export default function ReplyDeskPage() {
                             {Object.entries(tattooStyleLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                           </select>
                         </label>
+                        <label>
+                          희망 시술일
+                          <input value={formDraft.preferredDate} placeholder="예: 7/20 오후, 다음주 토요일" onChange={(e) => setFormDraft({ ...formDraft, preferredDate: e.target.value })} />
+                        </label>
                         <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: "8px", paddingTop: "22px" }}>
                           <input type="checkbox" checked={formDraft.isCoverup} onChange={(e) => setFormDraft({ ...formDraft, isCoverup: e.target.checked })} />
                           커버업
@@ -1042,11 +1066,11 @@ export default function ReplyDeskPage() {
                       onChange={(e) => { setStatusFilter(e.target.value as Status | "all"); setSelectedId(null); }}
                     >
                       <option value="all">전체 문의 ({inquiries.length})</option>
-                      <option value="new">새 문의 ({counts.new})</option>
-                      <option value="drafted">초안 완료 ({counts.drafted})</option>
-                      <option value="pending">보류 ({counts.pending})</option>
-                      <option value="escalated">상위 확인 ({counts.escalated})</option>
-                      <option value="done">처리 완료 ({counts.done})</option>
+                      {Object.entries(statusLabels).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label} ({counts[value as Status]})
+                        </option>
+                      ))}
                     </select>
                     <select value={customerFilter} onChange={(e) => { setCustomerFilter(e.target.value); setSelectedId(null); }}>
                       <option value="all">모든 고객</option>

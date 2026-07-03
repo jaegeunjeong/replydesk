@@ -104,6 +104,7 @@ create table if not exists inquiries (
   is_coverup boolean not null default false,
   session_count integer,
   quoted_price text,
+  preferred_date text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -120,7 +121,14 @@ alter table inquiries
   add column if not exists tattoo_style text,
   add column if not exists is_coverup boolean not null default false,
   add column if not exists session_count integer,
-  add column if not exists quoted_price text;
+  add column if not exists quoted_price text,
+  add column if not exists preferred_date text;
+
+-- 상태값을 타투 예약 전환 파이프라인으로 마이그레이션 (구 범용 CS 상태 → 신규 상태)
+update inquiries set status = 'quoted' where status = 'drafted';
+update inquiries set status = 'info_requested' where status = 'pending';
+update inquiries set status = 'deposit_pending' where status = 'escalated';
+update inquiries set status = 'closed' where status = 'done';
 
 create index if not exists inquiries_workspace_created_idx
   on inquiries(workspace_id, created_at desc);
