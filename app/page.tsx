@@ -1020,7 +1020,10 @@ export default function ReplyDeskPage() {
                         <label>
                           채널
                           <select value={formDraft.channel} onChange={(e) => setFormDraft({ ...formDraft, channel: e.target.value })}>
-                            {channelOptions.map((ch) => <option key={ch} value={ch}>{ch}</option>)}
+                            {(settings.channels.length > 0 ? settings.channels : channelOptions).map((ch) => <option key={ch} value={ch}>{ch}</option>)}
+                            {settings.channels.length > 0 && !settings.channels.includes(formDraft.channel) && (
+                              <option value={formDraft.channel}>{formDraft.channel}</option>
+                            )}
                           </select>
                         </label>
                         <label>

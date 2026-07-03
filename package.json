@@ -1,6 +1,6 @@
 {
-  "name": "replydesk-lite",
-  "version": "0.2.0",
+  "name": "inkdesk",
+  "version": "0.3.0",
   "private": true,
   "scripts": {
     "dev": "next dev",

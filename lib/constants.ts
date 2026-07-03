@@ -124,7 +124,6 @@ export const responseWindows: Record<ResponseWindowKey, string> = {
 };
 
 export const channelOptions = ["\uC778\uC2A4\uD0C0 DM", "\uCE74\uCE74\uC624\uD1A1", "\uC804\uD654", "\uBB38\uC790", "\uC0C1\uB2F4 \uC2E0\uCCAD \uD3FC"];
-export const intakeFieldOptions = ["\uACE0\uAC1D\uBA85", "\uC5F0\uB77D\uCC98", "\uC2DC\uC220 \uBD80\uC704", "\uD06C\uAE30(cm)", "\uC2A4\uD0C0\uC77C", "\uCEE4\uBC84\uC5C5 \uC5EC\uBD80", "\uB808\uD37C\uB7F0\uC2A4 \uC774\uBBF8\uC9C0", "\uD76C\uB9DD \uB0A0\uC9DC"];
 
 export const defaultSettings: Settings = {
   businessProfile: "tattoo",

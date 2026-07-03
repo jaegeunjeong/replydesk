@@ -1,7 +1,7 @@
 "use client";
 
 import type { Settings, DemoWorkspace, BusinessProfileKey, ToneKey, ResponseWindowKey } from "@/types";
-import { businessProfiles, toneProfiles, responseWindows, channelOptions, intakeFieldOptions, defaultSettings } from "@/lib/constants";
+import { businessProfiles, toneProfiles, responseWindows, channelOptions, defaultSettings } from "@/lib/constants";
 import { toggleValue } from "@/lib/utils";
 import { roleLabels } from "@/lib/permissions";
 import { SelectField, PermissionNotice } from "@/components/shared";
@@ -26,7 +26,6 @@ export function SettingsPanel({
   onReset: () => void;
 }) {
   const selectedChannels = settings.channels.length > 0 ? settings.channels : defaultSettings.channels;
-  const selectedFields = settings.intakeFields.length > 0 ? settings.intakeFields : defaultSettings.intakeFields;
 
   return (
     <section className="settings-workflow">
@@ -71,7 +70,8 @@ export function SettingsPanel({
 
         <section className="settings-card">
           <strong className="settings-card-title">운영 채널</strong>
-          <div className="choice-grid" style={{marginTop:'16px'}}>
+          <p className="section-sub" style={{marginTop:'6px'}}>선택한 채널이 상담 접수 폼의 채널 목록으로 사용됩니다.</p>
+          <div className="choice-grid" style={{marginTop:'12px'}}>
             {channelOptions.map((channel) => (
               <label className="choice-check" key={channel}>
                 <input
@@ -81,23 +81,6 @@ export function SettingsPanel({
                   onChange={() => onChange({ ...settings, channels: toggleValue(selectedChannels, channel) })}
                 />
                 <span>{channel}</span>
-              </label>
-            ))}
-          </div>
-        </section>
-
-        <section className="settings-card">
-          <strong className="settings-card-title">문의 접수 항목</strong>
-          <div className="choice-grid" style={{marginTop:'16px'}}>
-            {intakeFieldOptions.map((field) => (
-              <label className="choice-check" key={field}>
-                <input
-                  type="checkbox"
-                  checked={selectedFields.includes(field)}
-                  disabled={!canWrite}
-                  onChange={() => onChange({ ...settings, intakeFields: toggleValue(selectedFields, field) })}
-                />
-                <span>{field}</span>
               </label>
             ))}
           </div>
