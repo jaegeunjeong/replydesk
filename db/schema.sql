@@ -145,6 +145,13 @@ create table if not exists business_knowledge (
   primary key (workspace_id, profile)
 );
 
+-- 범용 CRM 시절 데이터 마이그레이션: InkDesk는 타투 전용이므로 모든 프로필을 tattoo로 통일.
+-- 레거시 업종(repair/academy/beauty/studio) 값이 남아 있으면 프런트가 프로필 조회에서 크래시한다.
+update workspaces set profile = 'tattoo', updated_at = now() where profile <> 'tattoo';
+update workspace_settings set business_profile = 'tattoo', updated_at = now() where business_profile <> 'tattoo';
+update inquiries set profile = 'tattoo', updated_at = now() where profile <> 'tattoo';
+delete from business_knowledge where profile <> 'tattoo';
+
 insert into app_users (id, name, email)
 values
   ('demo-owner', '원장님', 'owner@example.local'),

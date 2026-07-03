@@ -84,7 +84,8 @@ function getPermissionAccessCopy(role: string | null | undefined, profile: Busin
 }
 
 function createOnboardingDraft(settings: Settings = defaultSettings): OnboardingDraft {
-  const defaults = defaultKnowledge[settings.businessProfile];
+  // 레거시 DB에 tattoo 외 프로필이 남아 있어도 크래시하지 않도록 방어
+  const defaults = defaultKnowledge[settings.businessProfile] ?? defaultKnowledge.tattoo;
   const channels = settings.channels.length > 0 ? settings.channels : defaultSettings.channels;
   const intakeFields = settings.intakeFields.length > 0 ? settings.intakeFields : defaultSettings.intakeFields;
   const welcomeMessage = settings.welcomeMessage.trim() ? settings.welcomeMessage : defaultSettings.welcomeMessage;
@@ -475,11 +476,18 @@ export default function ReplyDeskPage() {
       const customersPayload = (await customersRes.json()) as { customers: Customer[] };
       const membersPayload = (await membersRes.json()) as { members: WorkspaceMember[] };
 
-      const nextSettings = settingsPayload.settings ?? defaultSettings;
-      const nextKnowledge = knowledgePayload.knowledge.reduce(
-        (acc, item) => ({ ...acc, [item.profile]: { prices: item.prices, faq: item.faq } }),
-        { ...defaultKnowledge },
-      );
+      const rawSettings = settingsPayload.settings ?? defaultSettings;
+      // DB에 레거시 업종 값(repair/academy 등)이 남아 있으면 tattoo로 정규화
+      const nextSettings: Settings = {
+        ...rawSettings,
+        businessProfile: rawSettings.businessProfile in businessProfiles ? rawSettings.businessProfile : "tattoo",
+      };
+      const nextKnowledge = knowledgePayload.knowledge
+        .filter((item) => item.profile in defaultKnowledge)
+        .reduce(
+          (acc, item) => ({ ...acc, [item.profile]: { prices: item.prices, faq: item.faq } }),
+          { ...defaultKnowledge },
+        );
 
       setSettings(nextSettings);
       setKnowledge(nextKnowledge);
