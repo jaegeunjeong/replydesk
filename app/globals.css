@@ -3297,6 +3297,124 @@ select {
   color: #6b7572;
 }
 
+/* 상담 정보 체크리스트 */
+.consult-check-card {
+  background: #fff;
+  border: 1px solid #e4e7e3;
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.consult-check-card .check-complete {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1d8f4e;
+}
+
+.consult-check-card .check-missing {
+  font-size: 12px;
+  font-weight: 700;
+  color: #b87d14;
+}
+
+.consult-check-groups {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.consult-check-groups > div > strong {
+  display: block;
+  font-size: 11.5px;
+  color: #6b7572;
+  margin-bottom: 6px;
+}
+
+.check-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.check-badge-row .check-empty {
+  font-size: 12px;
+  color: #9aa19d;
+}
+
+.badge.check-ok {
+  background: #e7f4ec;
+  color: #1d8f4e;
+  border-color: #cbe7d6;
+}
+
+.badge.check-gap {
+  background: #fdf3e3;
+  color: #b87d14;
+  border-color: #f0dfc0;
+}
+
+.next-question-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px dashed #e4e7e3;
+  padding-top: 12px;
+}
+
+.next-question-row strong {
+  display: block;
+  font-size: 11.5px;
+  color: #6b7572;
+  margin-bottom: 4px;
+}
+
+.next-question-row p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #333b38;
+}
+
+.next-question-row button {
+  flex-shrink: 0;
+}
+
+/* AI 초안 생성 줄 */
+.ai-generate-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.ai-generate-row .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #4a524e;
+}
+
+.knowledge-gap-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #b87d14;
+  background: #fdf3e3;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.ai-status-note {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: #9aa19d;
+}
+
 .breakdown-bar-track {
   height: 7px;
   border-radius: 999px;

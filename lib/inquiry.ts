@@ -5,6 +5,7 @@ import {
   responseWindows,
   categoryLabels,
   forbiddenReplyWords,
+  tattooStyleLabels,
 } from "@/lib/constants";
 import { normalizeCustomerValue } from "@/lib/utils";
 
@@ -23,6 +24,40 @@ export const openInquiryStatuses: Status[] = ["new", "info_requested", "quoted",
 
 export function isOpenInquiryStatus(status: Status) {
   return openInquiryStatuses.includes(status);
+}
+
+export type ConsultChecklist = {
+  confirmed: { label: string; value: string }[];
+  missing: string[];
+  nextQuestion: string | null;
+};
+
+// 견적을 내기 위해 확인해야 할 정보를 현재 문의 필드 기준으로 계산한다.
+export function getConsultChecklist(inquiry: Inquiry): ConsultChecklist {
+  const confirmed: { label: string; value: string }[] = [];
+  const missing: string[] = [];
+
+  if (inquiry.tattooArea) confirmed.push({ label: "시술 부위", value: inquiry.tattooArea });
+  else missing.push("시술 부위");
+
+  if (inquiry.tattooSize) confirmed.push({ label: "크기", value: inquiry.tattooSize });
+  else missing.push("크기");
+
+  if (inquiry.tattooStyle) confirmed.push({ label: "스타일", value: tattooStyleLabels[inquiry.tattooStyle] ?? inquiry.tattooStyle });
+  else missing.push("스타일");
+
+  if (inquiry.preferredDate) confirmed.push({ label: "희망 시술일", value: inquiry.preferredDate });
+  else missing.push("희망 시술일");
+
+  if (inquiry.isCoverup) confirmed.push({ label: "커버업", value: "예" });
+  if (inquiry.quotedPrice) confirmed.push({ label: "견적가", value: inquiry.quotedPrice });
+
+  const nextQuestion =
+    missing.length === 0
+      ? null
+      : `정확한 견적 안내를 위해 ${missing.join(", ")} 정보를 알려주실 수 있을까요? 참고 이미지가 있다면 함께 보내주시면 더 좋아요.`;
+
+  return { confirmed, missing, nextQuestion };
 }
 
 // 문의 상태가 파이프라인을 진행할 때 고객 상태를 함께 끌어올린다.

@@ -13,7 +13,7 @@ export type Status =
 export type BusinessProfileKey = "tattoo";
 export type ToneKey = "warm" | "concise" | "premium";
 export type ResponseWindowKey = "fast" | "same-day" | "next-business";
-export type AppView = "inbox" | "customers" | "knowledge" | "settings" | "members" | "automation" | "report";
+export type AppView = "inbox" | "customers" | "knowledge" | "settings" | "members" | "report";
 
 export type TattooStyle = "blackwork" | "color" | "watercolor" | "lettering" | "linework" | "oriental" | "realism" | "newschool" | "tribal" | "other";
 export type CustomerStatus = "new" | "consulted" | "booked" | "completed" | "returning";

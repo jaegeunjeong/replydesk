@@ -20,6 +20,9 @@ type GenerateReplyPayload = {
   isCoverup?: boolean;
   sessionCount?: number;
   preferredDate?: string;
+  missingInfo?: string[];
+  includeDeposit?: boolean;
+  includeAftercare?: boolean;
 };
 
 export async function POST(request: NextRequest) {
@@ -98,6 +101,19 @@ function buildPrompt(body: GenerateReplyPayload) {
     "",
     "FAQ:",
     body.faq || "없음",
+  );
+
+  if (body.missingInfo && body.missingInfo.length > 0) {
+    lines.push("", `아직 확인되지 않은 상담 정보: ${body.missingInfo.join(", ")}. 답변에서 이 정보를 자연스럽게 질문하세요.`);
+  }
+  if (body.includeDeposit) {
+    lines.push("", "요청: 예약금과 취소/변경 정책 안내를 답변에 포함하세요. 컨텍스트에 정책이 없으면 지어내지 말고 정책 확인 후 안내드리겠다고 쓰세요.");
+  }
+  if (body.includeAftercare) {
+    lines.push("", "요청: 시술 후 관리(애프터케어) 안내를 답변에 포함하세요. 컨텍스트에 없는 관리법은 지어내지 마세요.");
+  }
+
+  lines.push(
     "",
     "요청: 위 정보만 사용해서 고객에게 바로 보낼 수 있는 한국어 답변 초안을 작성하세요. 추가 확인이 필요한 정보는 자연스럽게 질문하세요.",
   );

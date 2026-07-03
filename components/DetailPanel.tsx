@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Inquiry, WorkspaceMember, Status, TattooStyle } from "@/types";
 import { categoryLabels, statusLabels, toneProfiles, tattooStyleLabels } from "@/lib/constants";
-import { getCustomerHistory, getInquiryTimeline, normalizeAiQuality } from "@/lib/inquiry";
+import { getCustomerHistory, getInquiryTimeline, normalizeAiQuality, getConsultChecklist } from "@/lib/inquiry";
 import { formatDateTime } from "@/lib/utils";
 import { Meta, PermissionNotice } from "@/components/shared";
 
@@ -14,6 +14,9 @@ export function DetailPanel({
   onCopy,
   onSaveReply,
   onUpdateOperations,
+  onGenerateAi,
+  aiStatus,
+  knowledgeReadiness,
   onDelete,
   canUpdate,
   canDelete,
@@ -30,6 +33,9 @@ export function DetailPanel({
     patch: Partial<Pick<Inquiry, "status" | "priority" | "assigneeId" | "internalNote" | "tattooArea" | "tattooSize" | "tattooStyle" | "isCoverup" | "sessionCount" | "quotedPrice" | "preferredDate">>,
     label: string,
   ) => void;
+  onGenerateAi: (options: { includeDeposit: boolean; includeAftercare: boolean }) => void;
+  aiStatus: string;
+  knowledgeReadiness: { deposit: boolean; aftercare: boolean };
   onDelete: (id: string) => void;
   canUpdate: boolean;
   canDelete: boolean;
@@ -38,6 +44,7 @@ export function DetailPanel({
 }) {
   const [replyDraft, setReplyDraft] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
+  const [aiOptions, setAiOptions] = useState({ includeDeposit: false, includeAftercare: false });
   const [tattooDraft, setTattooDraft] = useState({
     tattooArea: "",
     tattooSize: "",
@@ -76,6 +83,7 @@ export function DetailPanel({
 
   const history = getCustomerHistory(selected, inquiries);
   const timeline = getInquiryTimeline(selected);
+  const checklist = getConsultChecklist(selected);
   const assignee = members.find((m) => m.id === selected.assigneeId) ?? null;
   const aiQuality = normalizeAiQuality(selected.aiQuality, selected.aiDraft || selected.reply, replyDraft, selected.message);
   const aiDraft = selected.aiDraft || selected.reply;
@@ -100,6 +108,64 @@ export function DetailPanel({
         </div>
       </div>
 
+      <section className="consult-check-card">
+        <div className="section-title-row">
+          <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+            <span style={{width:'6px',height:'6px',borderRadius:'999px',background:'#b87d14',flexShrink:0}}></span>
+            <h4>상담 정보 체크</h4>
+          </div>
+          <span className={checklist.missing.length === 0 ? "check-complete" : "check-missing"}>
+            {checklist.missing.length === 0 ? "견적에 필요한 정보 확인 완료" : `부족한 정보 ${checklist.missing.length}개`}
+          </span>
+        </div>
+        <div className="consult-check-groups">
+          <div>
+            <strong>확인됨</strong>
+            <div className="check-badge-row">
+              {checklist.confirmed.length === 0 ? (
+                <span className="check-empty">아직 확인된 시술 정보가 없습니다.</span>
+              ) : (
+                checklist.confirmed.map((item) => (
+                  <span className="badge check-ok" key={item.label}>
+                    {item.label}: {item.value}
+                  </span>
+                ))
+              )}
+            </div>
+          </div>
+          <div>
+            <strong>부족함</strong>
+            <div className="check-badge-row">
+              {checklist.missing.length === 0 ? (
+                <span className="check-empty">없음 — 견적과 예약금 안내를 보낼 수 있습니다.</span>
+              ) : (
+                checklist.missing.map((item) => (
+                  <span className="badge check-gap" key={item}>
+                    {item}
+                  </span>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+        {checklist.nextQuestion && (
+          <div className="next-question-row">
+            <div>
+              <strong>다음 질문</strong>
+              <p>{checklist.nextQuestion}</p>
+            </div>
+            <button
+              className="secondary"
+              disabled={!canUpdate}
+              title={!canUpdate ? "수정 권한 필요" : undefined}
+              onClick={() => setReplyDraft((draft) => (draft.trim() ? `${draft}\n\n${checklist.nextQuestion}` : checklist.nextQuestion ?? ""))}
+            >
+              답변에 추가
+            </button>
+          </div>
+        )}
+      </section>
+
       <section className="reply-card">
         <div className="section-title-row">
           <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
@@ -115,6 +181,34 @@ export function DetailPanel({
           readOnly={!canUpdate}
           onChange={(e) => setReplyDraft(e.target.value)}
         />
+        <div className="ai-generate-row">
+          <button className="secondary" disabled={!canUpdate} onClick={() => onGenerateAi(aiOptions)}>
+            {selected.aiGeneratedAt ? "AI 초안 다시 생성" : "AI 초안 생성"}
+          </button>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={aiOptions.includeDeposit}
+              onChange={(e) => setAiOptions({ ...aiOptions, includeDeposit: e.target.checked })}
+            />
+            예약금 안내 포함
+          </label>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={aiOptions.includeAftercare}
+              onChange={(e) => setAiOptions({ ...aiOptions, includeAftercare: e.target.checked })}
+            />
+            애프터케어 안내 포함
+          </label>
+        </div>
+        {aiOptions.includeDeposit && !knowledgeReadiness.deposit && (
+          <p className="knowledge-gap-note">예약금/취소 정책이 지식베이스에 없어 안내가 일반적으로 작성됩니다. 견적/안내 화면에서 정책을 추가하면 답변 품질이 좋아집니다.</p>
+        )}
+        {aiOptions.includeAftercare && !knowledgeReadiness.aftercare && (
+          <p className="knowledge-gap-note">애프터케어 안내가 지식베이스에 없어 일반적인 내용으로 작성됩니다. 견적/안내 화면에서 관리법을 추가하세요.</p>
+        )}
+        <p className="ai-status-note">{aiStatus}</p>
         <div className="reply-primary-actions">
           <button className="primary" onClick={onCopy}>
             답변 복사

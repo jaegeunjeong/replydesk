@@ -14,7 +14,6 @@ export const appViews: Array<{ key: AppView; label: string; description: string 
   { key: "knowledge", label: "\uACAC\uC801/\uC548\uB0B4", description: "Price & FAQ" },
   { key: "settings", label: "\uC6B4\uC601 \uC124\uC815", description: "Settings" },
   { key: "members", label: "\uD300 \uAD00\uB9AC", description: "Team" },
-  { key: "automation", label: "AI \uCD08\uC548", description: "AI Draft" },
   { key: "report", label: "\uB9AC\uD3EC\uD2B8", description: "Report" },
 ];
 

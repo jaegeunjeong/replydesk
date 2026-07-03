@@ -50,6 +50,7 @@ import {
   summarizeReplyRevision,
   isOpenInquiryStatus,
   customerStatusForInquiryStatus,
+  getConsultChecklist,
   type TattooFields,
 } from "@/lib/inquiry";
 
@@ -118,7 +119,7 @@ export default function ReplyDeskPage() {
     workspaceName: "",
   });
   const [authStatus, setAuthStatus] = useState("");
-  const [activeView, setActiveView] = useState<"inbox" | "customers" | "knowledge" | "settings" | "members" | "automation" | "report">("inbox");
+  const [activeView, setActiveView] = useState<"inbox" | "customers" | "knowledge" | "settings" | "members" | "report">("inbox");
   const [isLoading, setIsLoading] = useState(true);
   const [inputText, setInputText] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -126,7 +127,7 @@ export default function ReplyDeskPage() {
   const [statusFilter, setStatusFilter] = useState<Status | "all">("all");
   const [categoryFilter, setCategoryFilter] = useState<"quote" | "booking" | "coverup" | "retouch" | "aftercare" | "general" | "all">("all");
   const [customerFilter, setCustomerFilter] = useState("all");
-  const [aiStatus, setAiStatus] = useState("문의 화면에서 처리할 문의를 선택하면 AI 초안을 생성할 수 있습니다.");
+  const [aiStatus, setAiStatus] = useState("문의를 선택하고 AI 초안 생성을 누르면 답변이 채워집니다.");
   const [dbStatus, setDbStatus] = useState("DB 연결 확인 중입니다.");
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
@@ -714,10 +715,11 @@ export default function ReplyDeskPage() {
     }
   }
 
-  async function generateAiReply() {
+  async function generateAiReply(options?: { includeDeposit?: boolean; includeAftercare?: boolean }) {
     if (!selected) return;
     setAiStatus("AI 답변 초안을 생성하는 중입니다.");
     const profileKnowledge = knowledge[selected.profile] ?? knowledge[settings.businessProfile];
+    const checklist = getConsultChecklist(selected);
     const payload = {
       businessLabel: businessProfiles[selected.profile].label,
       toneLabel: toneProfiles[selected.tone].label,
@@ -736,6 +738,9 @@ export default function ReplyDeskPage() {
       isCoverup: selected.isCoverup ?? undefined,
       sessionCount: selected.sessionCount ?? undefined,
       preferredDate: selected.preferredDate ?? undefined,
+      missingInfo: checklist.missing.length > 0 ? checklist.missing : undefined,
+      includeDeposit: options?.includeDeposit || undefined,
+      includeAftercare: options?.includeAftercare || undefined,
     };
 
     const res = await fetch("/api/generate-reply", {
@@ -1105,6 +1110,12 @@ export default function ReplyDeskPage() {
                 onCopy={() => selected && navigator.clipboard.writeText(selected.reply)}
                 onSaveReply={updateInquiryReply}
                 onUpdateOperations={updateInquiryOperations}
+                onGenerateAi={(options) => void generateAiReply(options)}
+                aiStatus={aiStatus}
+                knowledgeReadiness={{
+                  deposit: /예약금/.test(`${currentKnowledge.prices}\n${currentKnowledge.faq}`),
+                  aftercare: /애프터케어|관리/.test(`${currentKnowledge.prices}\n${currentKnowledge.faq}`),
+                }}
                 onDelete={(id) =>
                   requestConfirm({
                     title: "문의 삭제",
@@ -1179,44 +1190,6 @@ export default function ReplyDeskPage() {
               })
             }
           />
-        )}
-
-        {activeView === "automation" && (
-          <section className="automation-panel">
-            <div className="automation-hero">
-              <div>
-                <p className="eyebrow">AI automation</p>
-                <h3>선택한 문의의 답변 초안을 만듭니다</h3>
-                <p>지식베이스, 고객 문의 내용, 운영 설정을 참고해 직원이 바로 검토할 수 있는 응대 문장을 준비합니다.</p>
-              </div>
-              <div className="automation-run-card">
-                <div>
-                  <strong>서버 기본 모델 사용</strong>
-                  <span>모델과 API 키는 서버 설정에서 관리합니다.</span>
-                </div>
-                <button className="primary" disabled={!selected} onClick={() => void generateAiReply()}>
-                  AI 초안 생성
-                </button>
-                <p className="automation-note">
-                  {selected ? "생성된 초안은 선택한 문의의 답변 영역에 반영됩니다." : "먼저 문의 화면에서 답변할 문의를 선택하세요."}
-                </p>
-              </div>
-            </div>
-            <div className="automation-status-grid">
-              <div>
-                <strong>선택 문의</strong>
-                <span>{selected ? `${selected.customer} · ${categoryLabels[selected.category]}` : "문의 화면에서 처리할 문의를 선택하세요."}</span>
-              </div>
-              <div>
-                <strong>AI 상태</strong>
-                <span>{aiStatus}</span>
-              </div>
-              <div>
-                <strong>데이터 연결</strong>
-                <span>{dbStatus}</span>
-              </div>
-            </div>
-          </section>
         )}
 
         {activeView === "report" && <DailyReport />}
