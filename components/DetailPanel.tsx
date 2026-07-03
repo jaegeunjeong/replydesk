@@ -1,0 +1,421 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import type { Inquiry, WorkspaceMember, Status, TattooStyle } from "@/types";
+import { categoryLabels, statusLabels, toneProfiles, tattooStyleLabels } from "@/lib/constants";
+import { getCustomerHistory, getInquiryTimeline, normalizeAiQuality } from "@/lib/inquiry";
+import { formatDateTime } from "@/lib/utils";
+import { Meta, PermissionNotice } from "@/components/shared";
+
+export function DetailPanel({
+  selected,
+  inquiries,
+  members,
+  onCopy,
+  onSaveReply,
+  onUpdateOperations,
+  onDelete,
+  canUpdate,
+  canDelete,
+  updateLock,
+  deleteLock,
+}: {
+  selected: Inquiry | null;
+  inquiries: Inquiry[];
+  members: WorkspaceMember[];
+  onCopy: () => void;
+  onSaveReply: (id: string, reply: string) => void;
+  onUpdateOperations: (
+    id: string,
+    patch: Partial<Pick<Inquiry, "status" | "priority" | "assigneeId" | "internalNote" | "tattooArea" | "tattooSize" | "tattooStyle" | "isCoverup" | "sessionCount" | "quotedPrice">>,
+    label: string,
+  ) => void;
+  onDelete: (id: string) => void;
+  canUpdate: boolean;
+  canDelete: boolean;
+  updateLock: { title: string; body: string };
+  deleteLock: { title: string; body: string };
+}) {
+  const [replyDraft, setReplyDraft] = useState("");
+  const [noteDraft, setNoteDraft] = useState("");
+  const [tattooDraft, setTattooDraft] = useState({
+    tattooArea: "",
+    tattooSize: "",
+    tattooStyle: "" as string,
+    quotedPrice: "",
+    sessionCount: null as number | null,
+    isCoverup: false,
+  });
+
+  useEffect(() => {
+    setReplyDraft(selected?.reply ?? "");
+    setNoteDraft(selected?.internalNote ?? "");
+    setTattooDraft({
+      tattooArea: selected?.tattooArea ?? "",
+      tattooSize: selected?.tattooSize ?? "",
+      tattooStyle: selected?.tattooStyle ?? "",
+      quotedPrice: selected?.quotedPrice ?? "",
+      sessionCount: selected?.sessionCount ?? null,
+      isCoverup: selected?.isCoverup ?? false,
+    });
+  }, [selected?.id, selected?.reply, selected?.internalNote, selected?.tattooArea, selected?.tattooSize, selected?.tattooStyle, selected?.quotedPrice, selected?.sessionCount, selected?.isCoverup]);
+
+  if (!selected) {
+    return (
+      <div className="detail-panel reply-workspace">
+        <div className="empty-workflow">
+          <p className="eyebrow">Reply workflow</p>
+          <h3>문의를 선택하세요</h3>
+          <p>왼쪽 목록에서 문의를 선택하면 답변 초안, 분류 정보, 처리 이력이 여기에 표시됩니다.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const history = getCustomerHistory(selected, inquiries);
+  const timeline = getInquiryTimeline(selected);
+  const assignee = members.find((m) => m.id === selected.assigneeId) ?? null;
+  const aiQuality = normalizeAiQuality(selected.aiQuality, selected.aiDraft || selected.reply, replyDraft, selected.message);
+  const aiDraft = selected.aiDraft || selected.reply;
+  const replyChanged = replyDraft !== selected.reply;
+
+  return (
+    <div className="detail-panel reply-workspace">
+      {!canUpdate && <PermissionNotice title={updateLock.title} body={updateLock.body} />}
+      <div className="reply-hero">
+        <div>
+          <p className="eyebrow">Selected inquiry</p>
+          <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
+            <span className="avatar-md">{selected.customer.charAt(0)}</span>
+            <h3>{selected.customer}</h3>
+          </div>
+          <p>{selected.message}</p>
+        </div>
+        <div className="reply-status-stack">
+          <span className={`badge ${selected.priority === "긴급" ? "urgent" : ""}`}>{selected.priority}</span>
+          <span className="badge category">{categoryLabels[selected.category]}</span>
+          <span className="badge">{statusLabels[selected.status]}</span>
+        </div>
+      </div>
+
+      <section className="reply-card">
+        <div className="section-title-row">
+          <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+            <span style={{width:'6px',height:'6px',borderRadius:'999px',background:'#0d7369',flexShrink:0}}></span>
+            <h4>추천 답변</h4>
+            <small style={{fontSize:'11px',color:'#6b7572'}}>지식베이스 기반 자동 초안</small>
+          </div>
+          <span>{selected.aiModel ? selected.aiModel : "규칙 기반 초안"}</span>
+        </div>
+        <textarea
+          className="reply-editor primary-reply-editor"
+          value={replyDraft}
+          readOnly={!canUpdate}
+          onChange={(e) => setReplyDraft(e.target.value)}
+        />
+        <div className="reply-primary-actions">
+          <button className="primary" onClick={onCopy}>
+            답변 복사
+          </button>
+          <button
+            className="secondary"
+            onClick={() => onSaveReply(selected.id, replyDraft)}
+            disabled={!canUpdate || !replyChanged}
+            title={!canUpdate ? "수정 권한 필요" : undefined}
+          >
+            수정 저장
+          </button>
+          <button
+            className="secondary"
+            disabled={!canUpdate || selected.status === "done"}
+            onClick={() => onUpdateOperations(selected.id, { status: "done" }, "처리 완료")}
+          >
+            처리 완료
+          </button>
+        </div>
+      </section>
+
+      <section className="next-step-card">
+        <div>
+          <strong>다음 행동</strong>
+          <span>
+            {selected.status === "done"
+              ? "이미 처리 완료된 문의입니다."
+              : replyChanged
+                ? "수정한 답변을 저장한 뒤 고객에게 복사해 보내세요."
+                : "답변을 복사해 고객에게 보낸 뒤 처리 완료로 바꾸세요."}
+          </span>
+        </div>
+        <button
+          className="danger"
+          disabled={!canDelete}
+          title={!canDelete ? "삭제 권한 필요" : undefined}
+          onClick={() => onDelete(selected.id)}
+        >
+          문의 삭제
+        </button>
+      </section>
+      {!canDelete && <div className="delete-lock-note">{deleteLock.body}</div>}
+
+      <div className="support-drawer">
+        <details open>
+          <summary>처리 정보</summary>
+          <div className="ops-grid">
+            <label>
+              상태
+              <select
+                value={selected.status}
+                disabled={!canUpdate}
+                onChange={(e) =>
+                  onUpdateOperations(
+                    selected.id,
+                    { status: e.target.value as Status },
+                    `상태 변경: ${statusLabels[e.target.value as Status]}`,
+                  )
+                }
+              >
+                {Object.entries(statusLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              우선순위
+              <select
+                value={selected.priority}
+                disabled={!canUpdate}
+                onChange={(e) =>
+                  onUpdateOperations(
+                    selected.id,
+                    { priority: e.target.value as Inquiry["priority"] },
+                    `우선순위 변경: ${e.target.value}`,
+                  )
+                }
+              >
+                <option value="보통">보통</option>
+                <option value="긴급">긴급</option>
+              </select>
+            </label>
+            <label>
+              담당자
+              <select
+                value={selected.assigneeId ?? ""}
+                disabled={!canUpdate}
+                onChange={(e) => {
+                  const assigneeId = e.target.value || null;
+                  const nextAssignee = members.find((m) => m.id === assigneeId);
+                  onUpdateOperations(selected.id, { assigneeId }, `담당자 변경: ${nextAssignee?.name ?? "미지정"}`);
+                }}
+              >
+                <option value="">미지정</option>
+                {members.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name} · {member.role}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <label className="internal-note">
+            내부 메모
+            <textarea
+              value={noteDraft}
+              readOnly={!canUpdate}
+              placeholder="고객에게 보이지 않는 처리 메모를 남기세요."
+              onChange={(e) => setNoteDraft(e.target.value)}
+            />
+          </label>
+          <div className="note-actions">
+            <button
+              className="secondary"
+              disabled={!canUpdate || noteDraft === (selected.internalNote ?? "")}
+              onClick={() => onUpdateOperations(selected.id, { internalNote: noteDraft }, "내부 메모 수정")}
+            >
+              메모 저장
+            </button>
+          </div>
+        </details>
+
+        <details open>
+          <summary>시술 정보</summary>
+          <div className="ops-grid">
+            <label>
+              시술 부위
+              <input
+                value={tattooDraft.tattooArea}
+                readOnly={!canUpdate}
+                placeholder="예: 팔 안쪽, 손목"
+                onChange={(e) => setTattooDraft({ ...tattooDraft, tattooArea: e.target.value })}
+              />
+            </label>
+            <label>
+              크기
+              <input
+                value={tattooDraft.tattooSize}
+                readOnly={!canUpdate}
+                placeholder="예: 5x5cm"
+                onChange={(e) => setTattooDraft({ ...tattooDraft, tattooSize: e.target.value })}
+              />
+            </label>
+            <label>
+              스타일
+              <select
+                value={tattooDraft.tattooStyle}
+                disabled={!canUpdate}
+                onChange={(e) => setTattooDraft({ ...tattooDraft, tattooStyle: e.target.value })}
+              >
+                <option value="">미지정</option>
+                {Object.entries(tattooStyleLabels).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              견적가
+              <input
+                value={tattooDraft.quotedPrice}
+                readOnly={!canUpdate}
+                placeholder="예: 200,000원"
+                onChange={(e) => setTattooDraft({ ...tattooDraft, quotedPrice: e.target.value })}
+              />
+            </label>
+            <label>
+              세션 수
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={tattooDraft.sessionCount ?? ""}
+                readOnly={!canUpdate}
+                placeholder="예: 2"
+                onChange={(e) => setTattooDraft({ ...tattooDraft, sessionCount: e.target.value ? parseInt(e.target.value, 10) : null })}
+              />
+            </label>
+            <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <input
+                type="checkbox"
+                checked={tattooDraft.isCoverup}
+                disabled={!canUpdate}
+                onChange={(e) => setTattooDraft({ ...tattooDraft, isCoverup: e.target.checked })}
+              />
+              커버업 여부
+            </label>
+          </div>
+          <div className="note-actions">
+            <button
+              className="secondary"
+              disabled={
+                !canUpdate ||
+                (tattooDraft.tattooArea === (selected.tattooArea ?? "") &&
+                  tattooDraft.tattooSize === (selected.tattooSize ?? "") &&
+                  tattooDraft.tattooStyle === (selected.tattooStyle ?? "") &&
+                  tattooDraft.quotedPrice === (selected.quotedPrice ?? "") &&
+                  tattooDraft.sessionCount === (selected.sessionCount ?? null) &&
+                  tattooDraft.isCoverup === (selected.isCoverup ?? false))
+              }
+              onClick={() =>
+                onUpdateOperations(
+                  selected.id,
+                  {
+                    tattooArea: tattooDraft.tattooArea || null,
+                    tattooSize: tattooDraft.tattooSize || null,
+                    tattooStyle: (tattooDraft.tattooStyle || null) as TattooStyle | null,
+                    quotedPrice: tattooDraft.quotedPrice || null,
+                    sessionCount: tattooDraft.sessionCount,
+                    isCoverup: tattooDraft.isCoverup,
+                  },
+                  "시술 정보 수정",
+                )
+              }
+            >
+              시술 정보 저장
+            </button>
+          </div>
+        </details>
+
+        <details>
+          <summary>분류와 품질</summary>
+          <div className="meta-grid">
+            <Meta label="채널" value={selected.channel} />
+            <Meta label="유형" value={categoryLabels[selected.category]} />
+            <Meta label="담당자" value={assignee?.name ?? "미지정"} />
+            <Meta label="톤" value={toneProfiles[selected.tone].label} />
+          </div>
+          <div className="quality-grid">
+            <Meta label="품질 점수" value={`${aiQuality.score}점`} />
+            <Meta label="수정량" value={`${aiQuality.changedChars}자 · ${Math.round(aiQuality.changedRatio * 100)}%`} />
+            <Meta label="금지 표현" value={aiQuality.forbiddenHits.length > 0 ? `${aiQuality.forbiddenHits.length}개` : "없음"} />
+            <Meta label="누락 신호" value={aiQuality.missingSignals.length > 0 ? `${aiQuality.missingSignals.length}개` : "없음"} />
+          </div>
+          {(aiQuality.forbiddenHits.length > 0 || aiQuality.missingSignals.length > 0) && (
+            <div className="quality-alerts">
+              {aiQuality.forbiddenHits.map((word) => (
+                <span className="quality-alert danger" key={word}>
+                  금지 표현: {word}
+                </span>
+              ))}
+              {aiQuality.missingSignals.map((signal) => (
+                <span className="quality-alert" key={signal}>
+                  확인 필요: {signal}
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="ai-compare-grid">
+            <label>
+              AI 원본 초안
+              <textarea value={aiDraft} readOnly />
+            </label>
+            <label>
+              현재 최종 답변
+              <textarea value={replyDraft} readOnly />
+            </label>
+          </div>
+        </details>
+
+        <details>
+          <summary>이력</summary>
+          <div className="timeline-list">
+            {timeline.map((item) => (
+              <div className="timeline-item" key={item.id}>
+                <span>{formatDateTime(item.at)}</span>
+                <strong>{item.label}</strong>
+                <em>{item.actor}</em>
+              </div>
+            ))}
+          </div>
+          <div className="revision-log">
+            {(selected.replyRevisionLog ?? []).length === 0 ? (
+              <p>아직 사람이 저장한 수정 이력이 없습니다.</p>
+            ) : (
+              selected.replyRevisionLog?.map((item) => (
+                <div className="revision-item" key={item.id}>
+                  <span>{formatDateTime(item.at)}</span>
+                  <strong>{item.summary}</strong>
+                  <em>{item.changedChars}자 수정</em>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="history-list">
+            {history.length === 0 ? (
+              <div className="history-item">같은 고객의 이전 문의가 없습니다.</div>
+            ) : (
+              history.map((item) => (
+                <div className="history-item" key={item.id}>
+                  <div className="history-top">
+                    <span>{formatDateTime(item.createdAt)}</span>
+                    <strong>{categoryLabels[item.category]}</strong>
+                  </div>
+                  <p className="history-message">{item.message}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </details>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,120 @@
+import { NextRequest, NextResponse } from "next/server";
+import { DEFAULT_AI_MODEL } from "@/lib/constants";
+
+type GenerateReplyPayload = {
+  model?: string;
+  businessLabel?: string;
+  toneLabel?: string;
+  responseWindow?: string;
+  customer?: string;
+  channel?: string;
+  categoryLabel?: string;
+  priority?: string;
+  message?: string;
+  currentReply?: string;
+  prices?: string;
+  faq?: string;
+  tattooArea?: string;
+  tattooSize?: string;
+  tattooStyle?: string;
+  isCoverup?: boolean;
+  sessionCount?: number;
+};
+
+export async function POST(request: NextRequest) {
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: "OPENAI_API_KEY 환경 변수를 설정한 뒤 서버를 다시 실행하세요." },
+      { status: 400 },
+    );
+  }
+
+  const body = (await request.json()) as GenerateReplyPayload;
+  const model = body.model || process.env.OPENAI_MODEL || DEFAULT_AI_MODEL;
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      input: [
+        {
+          role: "system",
+          content:
+            "You write concise Korean consultation reply drafts for tattoo studios. Do not invent prices, policies, or availability. Use only the provided business context. When discussing tattoo procedures, never claim there is no pain or no side effects.",
+        },
+        {
+          role: "user",
+          content: buildPrompt(body),
+        },
+      ],
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    return NextResponse.json(
+      { error: data.error?.message || "OpenAI API request failed" },
+      { status: response.status },
+    );
+  }
+
+  return NextResponse.json({ reply: extractOutputText(data), model });
+}
+
+function buildPrompt(body: GenerateReplyPayload) {
+  const lines = [
+    `업종: 타투 스튜디오`,
+    `응대 톤: ${body.toneLabel || ""}`,
+    `예상 응답 시간: ${body.responseWindow || ""}`,
+    `고객명: ${body.customer || ""}`,
+    `채널: ${body.channel || ""}`,
+    `문의 유형: ${body.categoryLabel || ""}`,
+    `우선순위: ${body.priority || ""}`,
+    `고객 문의: ${body.message || ""}`,
+  ];
+
+  if (body.tattooArea) lines.push(`시술 부위: ${body.tattooArea}`);
+  if (body.tattooSize) lines.push(`크기: ${body.tattooSize}`);
+  if (body.tattooStyle) lines.push(`스타일: ${body.tattooStyle}`);
+  if (body.isCoverup) lines.push(`커버업 여부: 예`);
+  if (body.sessionCount) lines.push(`예상 세션: ${body.sessionCount}회`);
+
+  lines.push(
+    "",
+    "현재 규칙 기반 초안:",
+    body.currentReply || "",
+    "",
+    "가격표:",
+    body.prices || "없음",
+    "",
+    "FAQ:",
+    body.faq || "없음",
+    "",
+    "요청: 위 정보만 사용해서 고객에게 바로 보낼 수 있는 한국어 답변 초안을 작성하세요. 추가 확인이 필요한 정보는 자연스럽게 질문하세요.",
+  );
+
+  return lines.join("\n");
+}
+
+function extractOutputText(data: { output_text?: string; output?: Array<{ content?: Array<{ type?: string; text?: string }> }> }) {
+  if (typeof data.output_text === "string" && data.output_text.trim()) {
+    return data.output_text.trim();
+  }
+
+  const chunks: string[] = [];
+  for (const item of data.output || []) {
+    for (const content of item.content || []) {
+      if (content.type === "output_text" && content.text) {
+        chunks.push(content.text);
+      }
+    }
+  }
+  return chunks.join("\n").trim();
+}
