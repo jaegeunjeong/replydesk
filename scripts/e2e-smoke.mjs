@@ -258,6 +258,12 @@ async function main() {
   const reportBeforeUpdate = await request("/api/report/daily?tz=Asia%2FSeoul");
   assert(reportBeforeUpdate.data.report?.today?.total >= 1, "Daily report includes today's inquiries", `${reportBeforeUpdate.data.report.today.total} total`);
   assert(reportBeforeUpdate.data.report?.today?.urgent >= 1, "Daily report counts urgent inquiries", `${reportBeforeUpdate.data.report.today.urgent} urgent`);
+  assert(
+    typeof reportBeforeUpdate.data.report?.today?.infoGap === "number" &&
+      reportBeforeUpdate.data.report.today.infoGap <= reportBeforeUpdate.data.report.today.total,
+    "Daily report reports info-gap ratio",
+    `${reportBeforeUpdate.data.report.today.infoGap}/${reportBeforeUpdate.data.report.today.total} info-gap`,
+  );
 
   const patchedInquiry = await request(`/api/inquiries/${encodeURIComponent(inquiryId)}`, {
     method: "PATCH",

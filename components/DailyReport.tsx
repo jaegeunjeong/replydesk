@@ -19,6 +19,7 @@ type DailyReportData = {
     completed: number;
     aftercare: number;
     closed: number;
+    infoGap: number;
   };
   all: {
     open: number;
@@ -61,7 +62,19 @@ export function DailyReport() {
   if (loading) return <div className="report-loading">리포트 집계 중…</div>;
   if (error || !report) return <div className="report-error">{error || "리포트 없음"}</div>;
 
-  const conversionRate = report.today.total > 0 ? Math.round((report.today.converted / report.today.total) * 100) : 0;
+  const t = report.today;
+  // 누적 퍼널: 각 단계는 "그 단계 이상 진행된" 문의 수 (예약 확정은 시술/관리까지 포함).
+  const reachedQuote = t.quoted + t.depositPending + t.booked + t.completed + t.aftercare;
+  const reachedDeposit = t.depositPending + t.booked + t.completed + t.aftercare;
+  const reachedBooked = t.booked + t.completed + t.aftercare;
+  const conversionRate = t.total > 0 ? Math.round((reachedBooked / t.total) * 100) : 0;
+  const infoGapRate = t.total > 0 ? Math.round((t.infoGap / t.total) * 100) : 0;
+  const funnelStages = [
+    { label: "접수", count: t.total },
+    { label: "견적 안내", count: reachedQuote },
+    { label: "예약금", count: reachedDeposit },
+    { label: "예약 확정", count: reachedBooked },
+  ];
   const maxCat = report.topCategories[0]?.cnt ?? 1;
 
   return (
@@ -86,21 +99,63 @@ export function DailyReport() {
         </div>
       </div>
 
-      {/* 처리율 바 */}
-      <section className="report-rate-card">
-        <div className="report-rate-header">
-          <strong>오늘 예약 전환율</strong>
-          <span className="report-rate-pct">{conversionRate}%</span>
-        </div>
-        <div className="report-bar-track">
-          <div className="report-bar-fill" style={{ width: `${conversionRate}%` }} />
-        </div>
-        <div className="report-rate-sub">
-          <span>예약/시술 <strong style={{color:'#1d8f4e'}}>{report.today.converted}건</strong></span>
-          <span>응대 필요 <strong style={{color:'#b87d14'}}>{report.today.open}건</strong></span>
-          {report.today.urgent > 0 && <span>긴급 <strong style={{color:'#c03a3a'}}>{report.today.urgent}건</strong></span>}
-        </div>
-      </section>
+      {/* 예약 전환 퍼널 + 정보 부족 비율 */}
+      <div className="report-funnel-row">
+        <section className="report-rate-card">
+          <div className="report-rate-header">
+            <strong>오늘 예약 전환 퍼널</strong>
+            <span className="report-rate-pct">{conversionRate}%</span>
+          </div>
+          {t.total === 0 ? (
+            <p className="report-empty">오늘 접수된 문의가 없습니다.</p>
+          ) : (
+            <div className="report-funnel-list">
+              {funnelStages.map((stage, index) => {
+                const pct = t.total > 0 ? Math.round((stage.count / t.total) * 100) : 0;
+                const stepPct = index === 0 || funnelStages[index - 1].count === 0
+                  ? null
+                  : Math.round((stage.count / funnelStages[index - 1].count) * 100);
+                return (
+                  <div key={stage.label} className="report-funnel-stage">
+                    <div className="breakdown-meta">
+                      <span>{stage.label}</span>
+                      <strong>
+                        {stage.count}
+                        {stepPct !== null && <em className="funnel-step-pct"> · 이전 대비 {stepPct}%</em>}
+                      </strong>
+                    </div>
+                    <div className="breakdown-bar-track">
+                      <div className="row-bar booked" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div className="report-rate-sub">
+            <span>예약 확정 <strong style={{color:'#1d8f4e'}}>{reachedBooked}건</strong></span>
+            <span>응대 필요 <strong style={{color:'#b87d14'}}>{t.open}건</strong></span>
+            {t.urgent > 0 && <span>긴급 <strong style={{color:'#c03a3a'}}>{t.urgent}건</strong></span>}
+          </div>
+        </section>
+
+        <section className="report-rate-card">
+          <div className="report-rate-header">
+            <strong>정보 부족 문의 비율</strong>
+            <span className="report-rate-pct" style={{color: infoGapRate >= 50 ? '#c03a3a' : '#b87d14'}}>{infoGapRate}%</span>
+          </div>
+          <div className="report-bar-track">
+            <div className="report-bar-fill" style={{ width: `${infoGapRate}%`, background: infoGapRate >= 50 ? '#c03a3a' : '#d99a2b' }} />
+          </div>
+          <div className="report-rate-sub">
+            <span>정보 부족 <strong style={{color:'#b87d14'}}>{t.infoGap}건</strong></span>
+            <span>정보 충분 <strong style={{color:'#1d8f4e'}}>{Math.max(0, t.total - t.infoGap)}건</strong></span>
+          </div>
+          <p className="report-funnel-note">
+            부위·크기·스타일·희망일(견적/예약/커버업/리터치는 참고 이미지까지) 중 하나라도 비면 정보 부족으로 집계합니다. 이 비율이 높으면 견적 응답이 늦어집니다.
+          </p>
+        </section>
+      </div>
 
       {/* 하단 카드 그리드 */}
       <div className="report-grid">

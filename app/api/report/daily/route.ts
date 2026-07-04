@@ -19,6 +19,11 @@ export async function GET(request: NextRequest) {
           status,
           category,
           priority,
+          tattoo_area,
+          tattoo_size,
+          tattoo_style,
+          preferred_date,
+          has_reference_image,
           created_at,
           (created_at at time zone $2)::date = (now() at time zone $2)::date as is_today
         from inquiries
@@ -63,6 +68,13 @@ export async function GET(request: NextRequest) {
       (select count(*) from today where status = 'completed')::int                 as today_completed,
       (select count(*) from today where status = 'aftercare')::int                 as today_aftercare,
       (select count(*) from today where status = 'closed')::int                    as today_closed,
+      (select count(*) from today where
+          coalesce(tattoo_area, '') = ''
+          or coalesce(tattoo_size, '') = ''
+          or coalesce(tattoo_style, '') = ''
+          or coalesce(preferred_date, '') = ''
+          or (category in ('quote','booking','coverup','retouch') and has_reference_image = false)
+      )::int                                                                        as today_info_gap,
       (select count(*) from all_inquiries where status in ('new','info_requested','quoted','deposit_pending','aftercare'))::int as total_open,
       (select count(*) from all_inquiries where status = 'booked')::int            as total_booked,
       (select count(*) from all_inquiries where status = 'completed')::int         as total_completed,
@@ -91,6 +103,7 @@ export async function GET(request: NextRequest) {
         completed: row.today_completed,
         aftercare: row.today_aftercare,
         closed: row.today_closed,
+        infoGap: row.today_info_gap,
       },
       all: {
         open: row.total_open,
