@@ -84,6 +84,70 @@ export function getRelevantFaqSectionKeys(
   return knowledgeSections.map((s) => s.key).filter((key) => keys.has(key));
 }
 
+export type KnowledgeSourceUsage = {
+  used: { key: string; label: string }[];
+  missing: { key: string; label: string }[];
+};
+
+// AI 초안이 참고할 지식베이스 소스를 문의 유형/옵션 기준으로 분류한다.
+// 내용이 있으면 '참고한 소스', 비어 있으면 '비어 있는 소스'로 나눠
+// 사용자가 왜 지식베이스를 채워야 하는지(=답변 품질이 왜 달라지는지) 보이게 한다.
+export function getKnowledgeSourceUsage(
+  category: Category,
+  knowledge: { prices: string; faq: string },
+  options?: { includeDeposit?: boolean; includeAftercare?: boolean },
+): KnowledgeSourceUsage {
+  const sections = parseFaqSections(knowledge.faq);
+  const used: { key: string; label: string }[] = [];
+  const missing: { key: string; label: string }[] = [];
+
+  // 가격표(견적 기준)는 견적/예약/커버업/리터치에서 핵심 참고 자료다.
+  const priceRelevant: Category[] = ["quote", "booking", "coverup", "retouch"];
+  if (priceRelevant.includes(category)) {
+    if (parsePriceBook(knowledge.prices).length > 0) used.push({ key: "prices", label: "견적 기준" });
+    else missing.push({ key: "prices", label: "견적 기준" });
+  }
+
+  for (const key of getRelevantFaqSectionKeys(category, options)) {
+    if (key === "other") continue; // '기타 안내'는 소스 표기에서 생략
+    const label = knowledgeSections.find((s) => s.key === key)?.label ?? key;
+    if (sections[key]?.trim()) used.push({ key, label });
+    else missing.push({ key, label });
+  }
+
+  return { used, missing };
+}
+
+export type CustomerTattooSummary = {
+  recentArea: string | null;
+  preferredStyle: string | null;
+  latestQuote: string | null;
+  bookedCount: number;
+  completedCount: number;
+  retouchCareCount: number;
+};
+
+// 고객 상세 상단 '시술 요약'용 집계. inquiries는 최신순 정렬 가정(getCustomerInquiries).
+export function getCustomerTattooSummary(inquiries: Inquiry[]): CustomerTattooSummary {
+  const recentArea = inquiries.find((i) => i.tattooArea?.trim())?.tattooArea?.trim() ?? null;
+  const latestQuote = inquiries.find((i) => i.quotedPrice?.trim())?.quotedPrice?.trim() ?? null;
+
+  const styleCounts = new Map<TattooStyle, number>();
+  inquiries.forEach((i) => {
+    if (i.tattooStyle) styleCounts.set(i.tattooStyle, (styleCounts.get(i.tattooStyle) ?? 0) + 1);
+  });
+  const topStyle = Array.from(styleCounts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+
+  return {
+    recentArea,
+    preferredStyle: topStyle ? (tattooStyleLabels[topStyle] ?? topStyle) : null,
+    latestQuote,
+    bookedCount: inquiries.filter((i) => i.status === "booked").length,
+    completedCount: inquiries.filter((i) => i.status === "completed" || i.status === "aftercare").length,
+    retouchCareCount: inquiries.filter((i) => i.category === "retouch" || i.category === "aftercare").length,
+  };
+}
+
 export type ConsultChecklist = {
   confirmed: { label: string; value: string }[];
   missing: string[];

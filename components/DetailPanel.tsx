@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Inquiry, WorkspaceMember, Status, TattooStyle } from "@/types";
 import { categoryLabels, statusLabels, toneProfiles, tattooStyleLabels } from "@/lib/constants";
-import { getCustomerHistory, getInquiryTimeline, normalizeAiQuality, getConsultChecklist } from "@/lib/inquiry";
+import { getCustomerHistory, getInquiryTimeline, normalizeAiQuality, getConsultChecklist, getKnowledgeSourceUsage } from "@/lib/inquiry";
 import { formatDateTime } from "@/lib/utils";
 import { Meta, PermissionNotice } from "@/components/shared";
 
@@ -17,6 +17,7 @@ export function DetailPanel({
   onGenerateAi,
   aiStatus,
   knowledgeReadiness,
+  knowledgeSource,
   onDelete,
   canUpdate,
   canDelete,
@@ -36,6 +37,7 @@ export function DetailPanel({
   onGenerateAi: (options: { includeDeposit: boolean; includeAftercare: boolean }) => void;
   aiStatus: string;
   knowledgeReadiness: { deposit: boolean; aftercare: boolean };
+  knowledgeSource: { prices: string; faq: string };
   onDelete: (id: string) => void;
   canUpdate: boolean;
   canDelete: boolean;
@@ -104,6 +106,8 @@ export function DetailPanel({
   const aiQuality = normalizeAiQuality(selected.aiQuality, selected.aiDraft || selected.reply, replyDraft, selected.message);
   const aiDraft = selected.aiDraft || selected.reply;
   const replyChanged = replyDraft !== selected.reply;
+  // AI 초안이 어떤 지식베이스 소스를 참고했는지/무엇이 비었는지 (생성 옵션에 따라 달라짐).
+  const sourceUsage = getKnowledgeSourceUsage(selected.category, knowledgeSource, aiOptions);
 
   return (
     <div className="detail-panel reply-workspace">
@@ -224,6 +228,31 @@ export function DetailPanel({
         {aiOptions.includeAftercare && !knowledgeReadiness.aftercare && (
           <p className="knowledge-gap-note">애프터케어 안내가 지식베이스에 없어 일반적인 내용으로 작성됩니다. 견적/안내 화면에서 관리법을 추가하세요.</p>
         )}
+        <div className="ai-source-usage">
+          <div className="ai-source-group">
+            <span className="ai-source-label">참고한 답변 소스</span>
+            <div className="check-badge-row">
+              {sourceUsage.used.length === 0 ? (
+                <span className="check-empty">이 유형에 연결된 지식베이스 내용이 아직 없습니다.</span>
+              ) : (
+                sourceUsage.used.map((s) => (
+                  <span className="badge check-ok" key={s.key}>{s.label}</span>
+                ))
+              )}
+            </div>
+          </div>
+          {sourceUsage.missing.length > 0 && (
+            <div className="ai-source-group">
+              <span className="ai-source-label">비어 있는 소스</span>
+              <div className="check-badge-row">
+                {sourceUsage.missing.map((s) => (
+                  <span className="badge check-gap" key={s.key}>{s.label}</span>
+                ))}
+              </div>
+              <small className="ai-source-hint">지식베이스에서 이 항목을 채우면 AI 답변이 더 정확해집니다.</small>
+            </div>
+          )}
+        </div>
         <p className="ai-status-note">{aiStatus}</p>
         <div className="reply-primary-actions">
           <button className="primary" onClick={onCopy}>

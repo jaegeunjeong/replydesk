@@ -138,7 +138,8 @@ export default function ReplyDeskPage() {
   const [wizardDraft, setWizardDraft] = useState<OnboardingDraft>(() => createOnboardingDraft(defaultSettings));
   const [memberDraft, setMemberDraft] = useState({ name: "", email: "", role: "member" as WorkspaceRole });
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
-  const [intakeMode, setIntakeMode] = useState<"paste" | "form">("paste");
+  const [intakeMode, setIntakeMode] = useState<"quick" | "form" | "paste">("quick");
+  const [quickDraft, setQuickDraft] = useState({ customer: "", channel: "인스타 DM", message: "" });
   const [formDraft, setFormDraft] = useState({
     customer: "",
     channel: "인스타 DM",
@@ -239,6 +240,22 @@ export default function ReplyDeskPage() {
     setInquiries((current) => [...created, ...current]);
     setSelectedId(created[0]?.id ?? null);
     setInputText("");
+    void saveInquiriesToDatabase(created);
+  }
+
+  function processQuickInput() {
+    if (!canCreateInquiry) {
+      setDbStatus("문의 등록 권한이 없습니다.");
+      return;
+    }
+    if (!quickDraft.message.trim()) return;
+    // 여러 줄 DM 원문을 그대로 하나의 상담 카드로 만든다. (일괄 모드처럼 줄마다 쪼개지 않는다.)
+    const customer = quickDraft.customer.trim() || "이름 미상";
+    const line = `${customer} | ${quickDraft.channel} | ${quickDraft.message.trim()}`;
+    const created = [createInquiry(line, settings, knowledge)];
+    setInquiries((current) => [...created, ...current]);
+    setSelectedId(created[0].id);
+    setQuickDraft({ customer: "", channel: "인스타 DM", message: "" });
     void saveInquiriesToDatabase(created);
   }
 
@@ -998,10 +1015,46 @@ export default function ReplyDeskPage() {
                 <div>
                   <div className="composer-head">
                     <div className="intake-tabs">
+                      <button className={`intake-tab ${intakeMode === "quick" ? "active" : ""}`} onClick={() => setIntakeMode("quick")}>빠른 붙여넣기</button>
                       <button className={`intake-tab ${intakeMode === "form" ? "active" : ""}`} onClick={() => setIntakeMode("form")}>상담 접수 폼</button>
                       <button className={`intake-tab ${intakeMode === "paste" ? "active" : ""}`} onClick={() => setIntakeMode("paste")}>일괄 붙여넣기</button>
                     </div>
                   </div>
+
+                  {intakeMode === "quick" && (
+                    <>
+                      <div className="intake-form-grid">
+                        <label>
+                          고객명
+                          <input value={quickDraft.customer} placeholder="비워두면 '이름 미상'" onChange={(e) => setQuickDraft({ ...quickDraft, customer: e.target.value })} />
+                        </label>
+                        <label>
+                          채널
+                          <select value={quickDraft.channel} onChange={(e) => setQuickDraft({ ...quickDraft, channel: e.target.value })}>
+                            {(settings.channels.length > 0 ? settings.channels : channelOptions).map((ch) => <option key={ch} value={ch}>{ch}</option>)}
+                            {settings.channels.length > 0 && !settings.channels.includes(quickDraft.channel) && (
+                              <option value={quickDraft.channel}>{quickDraft.channel}</option>
+                            )}
+                          </select>
+                        </label>
+                      </div>
+                      <label style={{ display: "block", marginTop: "8px" }}>
+                        메시지 원문
+                        <textarea
+                          value={quickDraft.message}
+                          onChange={(e) => setQuickDraft({ ...quickDraft, message: e.target.value })}
+                          placeholder={"DM·카톡 내용을 그대로 붙여넣으세요. 여러 줄도 하나의 상담 카드로 정리됩니다.\n예)\n안녕하세요 손목에 이런 느낌으로 하고 싶은데 가격이 얼마일까요?\n사진은 위에 보낸 이미지 참고해주세요\n다음주 토요일 가능할까요?"}
+                          style={{ minHeight: "120px" }}
+                        />
+                      </label>
+                      <div className="composer-actions">
+                        <button className="primary" disabled={!canCreateInquiry || !quickDraft.message.trim()} onClick={processQuickInput}>
+                          상담 카드 만들기
+                        </button>
+                        <span>분류, 우선순위, 답변 초안이 자동 생성됩니다.</span>
+                      </div>
+                    </>
+                  )}
 
                   {intakeMode === "paste" && (
                     <>
@@ -1148,6 +1201,7 @@ export default function ReplyDeskPage() {
                   deposit: /예약금/.test(`${currentKnowledge.prices}\n${currentKnowledge.faq}`),
                   aftercare: /애프터케어|관리/.test(`${currentKnowledge.prices}\n${currentKnowledge.faq}`),
                 }}
+                knowledgeSource={selected ? (knowledge[selected.profile] ?? currentKnowledge) : currentKnowledge}
                 onDelete={(id) =>
                   requestConfirm({
                     title: "문의 삭제",

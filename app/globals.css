@@ -2750,6 +2750,40 @@ select {
   gap: 14px;
 }
 
+/* 고객 상세 상단 시술 요약 */
+.customer-tattoo-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #faf9f5;
+  border: 1px solid #dce1de;
+  border-radius: 12px;
+  margin-bottom: 14px;
+}
+
+.tattoo-summary-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.history-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.history-meta {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4a524e;
+  background: #eef2f0;
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
 .customer-layout {
   display: grid;
   grid-template-columns: minmax(280px, 340px) 1fr;
@@ -3422,6 +3456,35 @@ select {
   background: #fdf3e3;
   border-radius: 8px;
   padding: 8px 10px;
+}
+
+/* AI 초안이 참고한 / 비어 있는 지식베이스 소스 */
+.ai-source-usage {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: #faf9f5;
+  border: 1px solid #e4e7e3;
+  border-radius: 10px;
+}
+
+.ai-source-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ai-source-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6b7572;
+}
+
+.ai-source-hint {
+  font-size: 11px;
+  color: #b87d14;
 }
 
 .ai-status-note {

@@ -5,7 +5,8 @@ import type { Customer, Inquiry } from "@/types";
 import { customerStatusLabels } from "@/lib/constants";
 import { formatDateTime } from "@/lib/utils";
 import { parseTagDraft } from "@/lib/utils";
-import { categoryLabels, statusLabels } from "@/lib/constants";
+import { categoryLabels, statusLabels, tattooStyleLabels } from "@/lib/constants";
+import { getCustomerTattooSummary } from "@/lib/inquiry";
 import { Metric, PermissionNotice } from "@/components/shared";
 
 export function CustomerPanel({
@@ -103,6 +104,33 @@ export function CustomerPanel({
                 </div>
               </div>
 
+              <div className="customer-tattoo-summary">
+                <div className="section-title-row">
+                  <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                    <span style={{width:'6px',height:'6px',borderRadius:'999px',background:'#0d7369',flexShrink:0}}></span>
+                    <h4 style={{margin:0,fontSize:'14px',fontWeight:800}}>시술 요약</h4>
+                  </div>
+                </div>
+                {(() => {
+                  const summary = getCustomerTattooSummary(selectedCustomerInquiries);
+                  return (
+                    <>
+                      <div className="tattoo-summary-metrics">
+                        <Metric label="예약 확정" value={summary.bookedCount} />
+                        <Metric label="시술 완료" value={summary.completedCount} />
+                        <Metric label="리터치·관리" value={summary.retouchCareCount} />
+                      </div>
+                      <div className="customer-profile-grid">
+                        <div className="meta-item"><span>최근 작업 부위</span><strong>{summary.recentArea ?? "기록 없음"}</strong></div>
+                        <div className="meta-item"><span>선호 스타일</span><strong>{summary.preferredStyle ?? "기록 없음"}</strong></div>
+                        <div className="meta-item"><span>최근 견적가</span><strong>{summary.latestQuote ?? "미정"}</strong></div>
+                        <div className="meta-item"><span>주의 메모</span><strong>{selectedCustomer.skinNotes?.trim() ? "있음" : "없음"}</strong></div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+
               <div className="customer-profile-grid">
                 <div className="meta-item"><span>대표 채널</span><strong>{selectedCustomer.channel}</strong></div>
                 <div className="meta-item"><span>문의 수</span><strong>{selectedCustomer.inquiryCount}건</strong></div>
@@ -190,6 +218,14 @@ export function CustomerPanel({
                         </span>
                       </div>
                       <p className="history-message">{inquiry.message}</p>
+                      {(inquiry.tattooArea || inquiry.tattooSize || inquiry.tattooStyle || inquiry.quotedPrice) && (
+                        <div className="history-meta-row">
+                          {inquiry.tattooArea && <span className="history-meta">{inquiry.tattooArea}</span>}
+                          {inquiry.tattooSize && <span className="history-meta">{inquiry.tattooSize}</span>}
+                          {inquiry.tattooStyle && <span className="history-meta">{tattooStyleLabels[inquiry.tattooStyle] ?? inquiry.tattooStyle}</span>}
+                          {inquiry.quotedPrice && <span className="history-meta">{inquiry.quotedPrice}</span>}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
