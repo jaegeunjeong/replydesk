@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { pool } from "@/lib/db";
+import { pool, resolveSession, SESSION_COOKIE, updateSessionWorkspace } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
-  const body = (await request.json()) as { userId?: string; workspaceId?: string };
-  const userId = request.cookies.get("replydesk_user")?.value || request.headers.get("x-replydesk-user-id") || body.userId || "";
-  const workspaceId = body.workspaceId || "";
+  const token = request.cookies.get(SESSION_COOKIE)?.value;
+  const session = await resolveSession(token);
+  if (!session || !token) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  const body = (await request.json()) as { workspaceId?: string };
+  const workspaceId = String(body.workspaceId || "");
 
   const membership = await pool.query(
     `
@@ -23,27 +28,14 @@ export async function POST(request: NextRequest) {
       and workspace_members.workspace_id = $2
     limit 1
     `,
-    [userId, workspaceId],
+    [session.userId, workspaceId],
   );
 
   if (!membership.rows[0]) {
     return NextResponse.json({ error: "Workspace access denied" }, { status: 403 });
   }
 
-  const response = NextResponse.json({ ok: true, session: membership.rows[0] });
+  await updateSessionWorkspace(token, workspaceId);
 
-  response.cookies.set("replydesk_user", userId, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
-  });
-  response.cookies.set("replydesk_workspace", workspaceId, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
-  });
-
-  return response;
+  return NextResponse.json({ ok: true, session: membership.rows[0] });
 }

@@ -3,7 +3,7 @@ const testRun = Date.now();
 const inquiryId = `e2e-${testRun}`;
 const customerName = `E2E Customer ${testRun}`;
 const memberEmail = `e2e-member-${testRun}@example.local`;
-const memberPassword = "admin1234";
+let memberPassword = "";
 
 const cookies = new Map();
 const results = [];
@@ -287,6 +287,8 @@ async function main() {
   });
   cleanup.memberId = member.data.member.id;
   assert(member.data.member.email === memberEmail, "Member invite");
+  memberPassword = member.data.tempPassword;
+  assert(typeof memberPassword === "string" && memberPassword.length >= 8, "Member invite issues temp password");
 
   const roleChange = await request(`/api/members/${encodeURIComponent(cleanup.memberId)}`, {
     method: "PATCH",
@@ -306,6 +308,20 @@ async function main() {
     "AI endpoint handled",
     ai.response.ok ? `configured: ${ai.data.model || "server model"}` : ai.data.error || `status ${ai.response.status}`,
   );
+
+  // 인증 없이 호출하면 게이팅으로 차단되어야 한다 (OpenAI 비용 남용 방지).
+  const ownerCookies = new Map(cookies);
+  try {
+    cookies.clear();
+    const unauthAi = await request("/api/generate-reply", {
+      method: "POST",
+      body: { customer: customerName, message: "예약 문의", currentReply: "확인 후 안내드리겠습니다." },
+      allowError: true,
+    });
+    assert(unauthAi.response.status === 401, "AI endpoint rejects unauthenticated calls", `status ${unauthAi.response.status}`);
+  } finally {
+    restoreCookies(ownerCookies);
+  }
 }
 
 async function assertMemberPermissions() {

@@ -29,6 +29,29 @@ create table if not exists workspace_members (
   primary key (workspace_id, user_id)
 );
 
+create table if not exists sessions (
+  token text primary key,
+  user_id text not null references app_users(id) on delete cascade,
+  workspace_id text references workspaces(id) on delete set null,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null default now() + interval '30 days'
+);
+
+create index if not exists sessions_user_idx on sessions(user_id);
+create index if not exists sessions_expires_idx on sessions(expires_at);
+
+create table if not exists ai_usage_log (
+  id bigserial primary key,
+  workspace_id text not null,
+  user_id text not null,
+  model text not null,
+  status text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists ai_usage_log_workspace_created_idx
+  on ai_usage_log(workspace_id, created_at desc);
+
 create table if not exists workspace_settings (
   workspace_id text primary key references workspaces(id) on delete cascade,
   business_profile text not null default 'tattoo',

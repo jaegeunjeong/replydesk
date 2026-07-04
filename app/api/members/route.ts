@@ -1,6 +1,7 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
+import { hashPassword } from "@/lib/auth";
 import { getWorkspaceContext, pool, requireWorkspacePermission, WorkspaceAccessError, WorkspaceContext, WorkspacePermissionError } from "@/lib/db";
 import { isWorkspaceRole, roleLabels, WorkspaceRole } from "@/lib/permissions";
 
@@ -65,18 +66,32 @@ export async function POST(request: NextRequest) {
 
   try {
     await client.query("begin");
-    await client.query(
-      `
-      insert into app_users (id, name, email, updated_at)
-      values ($1, $2, $3, now())
-      on conflict (email) do update set
-        name = excluded.name,
-        updated_at = now()
-      `,
-      [userId, name, email],
+
+    // 신규 계정이거나 비밀번호가 아직 없는 계정에만 임시 비밀번호를 발급한다.
+    // (이미 비밀번호를 설정한 기존 멤버를 재초대해도 비밀번호를 덮어쓰지 않는다.)
+    const existing = await client.query(
+      "select id, password_hash as \"passwordHash\" from app_users where email = $1 limit 1",
+      [email],
     );
-    const userResult = await client.query("select id from app_users where email = $1 limit 1", [email]);
-    const resolvedUserId = userResult.rows[0]?.id || userId;
+    let resolvedUserId = existing.rows[0]?.id || userId;
+    let tempPassword = null;
+
+    if (!existing.rows[0]) {
+      tempPassword = generateTempPassword();
+      await client.query(
+        "insert into app_users (id, name, email, password_hash, updated_at) values ($1, $2, $3, $4, now())",
+        [userId, name, email, hashPassword(tempPassword)],
+      );
+      resolvedUserId = userId;
+    } else if (!existing.rows[0].passwordHash) {
+      tempPassword = generateTempPassword();
+      await client.query(
+        "update app_users set name = $2, password_hash = $3, updated_at = now() where id = $1",
+        [resolvedUserId, name, hashPassword(tempPassword)],
+      );
+    } else {
+      await client.query("update app_users set name = $2, updated_at = now() where id = $1", [resolvedUserId, name]);
+    }
 
     const member = await client.query(
       `
@@ -99,6 +114,7 @@ export async function POST(request: NextRequest) {
         role,
         roleLabel: roleLabels[role],
       },
+      tempPassword,
     });
   } catch (error) {
     await client.query("rollback");
@@ -126,4 +142,9 @@ function requireMemberManage(context: WorkspaceContext) {
 function getUserId(email: string) {
   const hash = createHash("sha256").update(email).digest("hex").slice(0, 18);
   return `user_${hash}`;
+}
+
+function generateTempPassword() {
+  // 12자 랜덤 문자열(base64url). 최소 비밀번호 길이(8) 정책을 충족한다.
+  return randomBytes(9).toString("base64url");
 }

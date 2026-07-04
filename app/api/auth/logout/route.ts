@@ -1,8 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function POST() {
+import { clearSessionCookie, deleteSession, SESSION_COOKIE } from "@/lib/db";
+
+export async function POST(request: NextRequest) {
+  await deleteSession(request.cookies.get(SESSION_COOKIE)?.value);
   const response = NextResponse.json({ ok: true });
-  response.cookies.delete("replydesk_user");
-  response.cookies.delete("replydesk_workspace");
+  clearSessionCookie(response);
   return response;
 }

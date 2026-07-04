@@ -640,10 +640,15 @@ export default function ReplyDeskPage() {
       setDbStatus(payload.error || "멤버 초대에 실패했습니다.");
       return;
     }
+    const payload = (await res.json().catch(() => ({}))) as { tempPassword?: string | null };
     setMemberDraft({ name: "", email: "", role: "member" });
     await loadSession();
     await refreshMembersFromDatabase();
-    setDbStatus("멤버를 워크스페이스에 추가했습니다.");
+    setDbStatus(
+      payload.tempPassword
+        ? `멤버를 추가했습니다. 임시 비밀번호: ${payload.tempPassword} — 멤버에게 안전하게 전달하고 첫 로그인 후 변경하도록 안내하세요.`
+        : "멤버를 워크스페이스에 추가했습니다.",
+    );
   }
 
   async function updateMemberRole(userId: string, role: WorkspaceRole) {

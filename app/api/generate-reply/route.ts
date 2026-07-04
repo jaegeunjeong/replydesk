@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DEFAULT_AI_MODEL } from "@/lib/constants";
+import { getWorkspaceContext, pool, WorkspaceAccessError } from "@/lib/db";
+
+const DEFAULT_AI_DAILY_LIMIT = 200;
 
 type GenerateReplyPayload = {
   model?: string;
@@ -26,12 +29,35 @@ type GenerateReplyPayload = {
 };
 
 export async function POST(request: NextRequest) {
+  // 다른 데이터 라우트와 동일하게 세션/워크스페이스 검증을 거친다.
+  // (인증 없이 열려 있으면 OpenAI 비용이 그대로 남용될 수 있다.)
+  const context = await getWorkspaceContext(request).catch((error) => {
+    if (error instanceof WorkspaceAccessError) return null;
+    throw error;
+  });
+  if (!context) {
+    return NextResponse.json({ error: "Workspace access denied" }, { status: 401 });
+  }
+
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
     return NextResponse.json(
       { error: "OPENAI_API_KEY 환경 변수를 설정한 뒤 서버를 다시 실행하세요." },
       { status: 400 },
+    );
+  }
+
+  // 워크스페이스별 일일 호출 한도 확인 (비용 상한).
+  const dailyLimit = Number(process.env.AI_DAILY_LIMIT) || DEFAULT_AI_DAILY_LIMIT;
+  const usageToday = await pool.query(
+    `select count(*)::int as count from ai_usage_log where workspace_id = $1 and created_at >= date_trunc('day', now())`,
+    [context.workspaceId],
+  );
+  if ((usageToday.rows[0]?.count ?? 0) >= dailyLimit) {
+    return NextResponse.json(
+      { error: `오늘의 AI 초안 생성 한도(${dailyLimit}건)를 초과했습니다. 내일 다시 시도하거나 관리자에게 문의하세요.` },
+      { status: 429 },
     );
   }
 
@@ -62,6 +88,8 @@ export async function POST(request: NextRequest) {
 
   const data = await response.json();
 
+  await logAiUsage(context, model, response.ok ? "ok" : "error");
+
   if (!response.ok) {
     return NextResponse.json(
       { error: data.error?.message || "OpenAI API request failed" },
@@ -70,6 +98,21 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ reply: extractOutputText(data), model });
+}
+
+async function logAiUsage(
+  context: { workspaceId: string; userId: string },
+  model: string,
+  status: string,
+) {
+  try {
+    await pool.query(
+      `insert into ai_usage_log (workspace_id, user_id, model, status) values ($1, $2, $3, $4)`,
+      [context.workspaceId, context.userId, model, status],
+    );
+  } catch {
+    // 사용량 로깅 실패가 답변 생성 자체를 막지 않도록 무시한다.
+  }
 }
 
 function buildPrompt(body: GenerateReplyPayload) {

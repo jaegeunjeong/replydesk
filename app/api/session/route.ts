@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { pool } from "@/lib/db";
+import { pool, resolveSession, SESSION_COOKIE } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
-  const currentUserId = request.cookies.get("replydesk_user")?.value || request.headers.get("x-replydesk-user-id");
-  const currentWorkspaceId = request.cookies.get("replydesk_workspace")?.value || request.headers.get("x-replydesk-workspace-id");
+  const session = await resolveSession(request.cookies.get(SESSION_COOKIE)?.value);
 
-  if (!currentUserId) {
+  if (!session) {
     return NextResponse.json({ authenticated: false, currentUserId: null, currentWorkspaceId: null, users: [], workspaces: [] });
   }
+
+  const currentUserId = session.userId;
+  const currentWorkspaceId = session.workspaceId;
 
   const users = await pool.query(
     `

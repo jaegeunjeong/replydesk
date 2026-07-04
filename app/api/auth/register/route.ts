@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 import { hashPassword } from "@/lib/auth";
-import { pool } from "@/lib/db";
+import { createSession, pool, setSessionCookie } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   const body = (await request.json()) as { name?: string; email?: string; password?: string; workspaceName?: string };
@@ -68,8 +68,9 @@ export async function POST(request: NextRequest) {
     );
     await client.query("commit");
 
+    const token = await createSession(userId, workspaceId);
     const response = NextResponse.json({ ok: true, user: { id: userId, name, email }, workspaceId });
-    setSessionCookies(response, userId, workspaceId);
+    setSessionCookie(response, token);
     return response;
   } catch (error) {
     await client.query("rollback");
@@ -82,19 +83,4 @@ export async function POST(request: NextRequest) {
 
 function getStableId(prefix: string, value: string) {
   return `${prefix}_${createHash("sha256").update(value).digest("hex").slice(0, 18)}`;
-}
-
-function setSessionCookies(response: NextResponse, userId: string, workspaceId: string) {
-  response.cookies.set("replydesk_user", userId, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
-  });
-  response.cookies.set("replydesk_workspace", workspaceId, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
-  });
 }

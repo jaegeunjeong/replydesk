@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { createHash } from "node:crypto";
+import { createHash, pbkdf2Sync, randomBytes } from "node:crypto";
 import pg from "pg";
 
 const envPath = resolve(".env.local");
@@ -21,9 +21,35 @@ await client.connect();
 try {
   await client.query(schema);
   const backfilled = await backfillInquiryCustomers(client);
-  console.log(`Database schema applied. Customer links backfilled: ${backfilled}.`);
+  const seededPasswords = await ensureDemoPasswords(client);
+  console.log(`Database schema applied. Customer links backfilled: ${backfilled}. Demo passwords set: ${seededPasswords}.`);
 } finally {
   await client.end();
+}
+
+// 데모 계정에 실제 비밀번호 해시를 설정한다. (기존 admin1234 백도어 대체)
+// password_hash가 비어 있는 데모 계정에만 적용하므로, 운영자가 별도로 바꾼 비밀번호는 보존된다.
+async function ensureDemoPasswords(client) {
+  const demoAccounts = ["demo-owner", "demo-member"];
+  const result = await client.query(
+    `
+    update app_users
+    set password_hash = $2, updated_at = now()
+    where id = any($1)
+      and password_hash is null
+    returning id
+    `,
+    [demoAccounts, hashPassword("admin1234")],
+  );
+  return result.rows.length;
+}
+
+// lib/auth.ts와 동일한 pbkdf2 스킴 (.mjs에서는 @/ 별칭 임포트가 안 되어 복제).
+function hashPassword(password) {
+  const iterations = 120000;
+  const salt = randomBytes(16).toString("hex");
+  const hash = pbkdf2Sync(password, salt, iterations, 32, "sha256").toString("hex");
+  return `pbkdf2:${iterations}:${salt}:${hash}`;
 }
 
 function readEnvValue(text, key) {
