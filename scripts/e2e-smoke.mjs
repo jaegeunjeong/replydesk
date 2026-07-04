@@ -238,10 +238,18 @@ async function main() {
       sessionCount: 1,
       quotedPrice: "80,000원~",
       preferredDate: "다음주 토요일 오후",
+      hasReferenceImage: true,
+      referenceImageNote: "DM 레퍼런스 2장",
     },
   });
   cleanup.inquiryCreated = true;
   assert(createInquiry.data.ok === true && createInquiry.data.saved === 1, "Inquiry create");
+
+  const createdInquiry = (await request("/api/inquiries")).data.inquiries.find((entry) => entry.id === inquiryId);
+  assert(
+    createdInquiry?.hasReferenceImage === true && createdInquiry?.referenceImageNote === "DM 레퍼런스 2장",
+    "Reference image fields persist",
+  );
 
   const inquiries = await request("/api/inquiries");
   const created = (inquiries.data.inquiries || []).find((entry) => entry.id === inquiryId);
@@ -260,6 +268,9 @@ async function main() {
       internalNote: `E2E note ${testRun}`,
       reply: `E2E reply ${testRun}`,
       preferredDate: "7/20 오후",
+      depositAmount: "24,000원",
+      appointmentAt: "7/20(토) 오후 3시",
+      policyConfirmed: true,
       timeline: [{ id: `tl-${testRun}`, actor: "E2E", label: "smoke test" }],
     },
   });
@@ -269,6 +280,22 @@ async function main() {
       patchedInquiry.data.inquiry.assigneeId === "demo-agent" &&
       patchedInquiry.data.inquiry.preferredDate === "7/20 오후",
     "Inquiry update",
+  );
+  assert(
+    patchedInquiry.data.inquiry.depositAmount === "24,000원" &&
+      patchedInquiry.data.inquiry.appointmentAt === "7/20(토) 오후 3시" &&
+      patchedInquiry.data.inquiry.policyConfirmed === true,
+    "Deposit fields update",
+  );
+
+  // 입금 확인 → 예약 확정 흐름
+  const paidInquiry = await request(`/api/inquiries/${encodeURIComponent(inquiryId)}`, {
+    method: "PATCH",
+    body: { depositPaidAt: new Date().toISOString(), status: "booked" },
+  });
+  assert(
+    paidInquiry.data.inquiry.status === "booked" && Boolean(paidInquiry.data.inquiry.depositPaidAt),
+    "Deposit payment confirmation",
   );
 
   const customers = await request("/api/customers");

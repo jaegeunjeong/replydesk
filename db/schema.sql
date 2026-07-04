@@ -128,6 +128,13 @@ create table if not exists inquiries (
   session_count integer,
   quoted_price text,
   preferred_date text,
+  has_reference_image boolean not null default false,
+  reference_image_note text,
+  deposit_amount text,
+  deposit_payer_name text,
+  deposit_paid_at timestamptz,
+  appointment_at text,
+  policy_confirmed boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -145,7 +152,14 @@ alter table inquiries
   add column if not exists is_coverup boolean not null default false,
   add column if not exists session_count integer,
   add column if not exists quoted_price text,
-  add column if not exists preferred_date text;
+  add column if not exists preferred_date text,
+  add column if not exists has_reference_image boolean not null default false,
+  add column if not exists reference_image_note text,
+  add column if not exists deposit_amount text,
+  add column if not exists deposit_payer_name text,
+  add column if not exists deposit_paid_at timestamptz,
+  add column if not exists appointment_at text,
+  add column if not exists policy_confirmed boolean not null default false;
 
 -- 상태값을 타투 예약 전환 파이프라인으로 마이그레이션 (구 범용 CS 상태 → 신규 상태)
 update inquiries set status = 'quoted' where status = 'drafted';

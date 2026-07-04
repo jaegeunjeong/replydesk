@@ -19,6 +19,8 @@ export type TattooFields = {
   sessionCount?: number | null;
   quotedPrice?: string | null;
   preferredDate?: string | null;
+  hasReferenceImage?: boolean;
+  referenceImageNote?: string | null;
 };
 
 // 응대가 필요한(아직 예약 전환 전이거나 관리 문의인) 상태
@@ -105,6 +107,16 @@ export function getConsultChecklist(inquiry: Inquiry): ConsultChecklist {
   if (inquiry.preferredDate) confirmed.push({ label: "희망 시술일", value: inquiry.preferredDate });
   else missing.push("희망 시술일");
 
+  // 참고 이미지는 견적/예약/커버업/리터치에서 사실상 필수 자료라 별도로 추적한다.
+  const imageRelevant: Category[] = ["quote", "booking", "coverup", "retouch"];
+  if (imageRelevant.includes(inquiry.category)) {
+    if (inquiry.hasReferenceImage) {
+      confirmed.push({ label: "참고 이미지", value: inquiry.referenceImageNote?.trim() || "받음" });
+    } else {
+      missing.push("참고 이미지");
+    }
+  }
+
   if (inquiry.isCoverup) confirmed.push({ label: "커버업", value: "예" });
   if (inquiry.quotedPrice) confirmed.push({ label: "견적가", value: inquiry.quotedPrice });
 
@@ -170,6 +182,8 @@ export function createInquiry(line: string, settings: Settings, knowledge: Knowl
     sessionCount: tattoo?.sessionCount ?? null,
     quotedPrice: tattoo?.quotedPrice ?? null,
     preferredDate: tattoo?.preferredDate ?? null,
+    hasReferenceImage: tattoo?.hasReferenceImage ?? false,
+    referenceImageNote: tattoo?.referenceImageNote ?? null,
     ...base,
   };
 }

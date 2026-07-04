@@ -148,6 +148,7 @@ export default function ReplyDeskPage() {
     tattooStyle: "" as TattooStyle | "",
     isCoverup: false,
     preferredDate: "",
+    hasReferenceImage: false,
   });
 
   useEffect(() => {
@@ -256,11 +257,12 @@ export default function ReplyDeskPage() {
       tattooStyle: (formDraft.tattooStyle || null) as TattooStyle | null,
       isCoverup: formDraft.isCoverup,
       preferredDate: formDraft.preferredDate || null,
+      hasReferenceImage: formDraft.hasReferenceImage,
     };
     const created = [createInquiry(line, settings, knowledge, tattoo)];
     setInquiries((current) => [...created, ...current]);
     setSelectedId(created[0].id);
-    setFormDraft({ customer: "", channel: "인스타 DM", message: "", tattooArea: "", tattooSize: "", tattooStyle: "", isCoverup: false, preferredDate: "" });
+    setFormDraft({ customer: "", channel: "인스타 DM", message: "", tattooArea: "", tattooSize: "", tattooStyle: "", isCoverup: false, preferredDate: "", hasReferenceImage: false });
     void saveInquiriesToDatabase(created);
   }
 
@@ -331,7 +333,7 @@ export default function ReplyDeskPage() {
 
   function updateInquiryOperations(
     id: string,
-    patch: Partial<Pick<Inquiry, "status" | "priority" | "assigneeId" | "internalNote" | "tattooArea" | "tattooSize" | "tattooStyle" | "isCoverup" | "sessionCount" | "quotedPrice" | "preferredDate">>,
+    patch: Partial<Pick<Inquiry, "status" | "priority" | "assigneeId" | "internalNote" | "tattooArea" | "tattooSize" | "tattooStyle" | "isCoverup" | "sessionCount" | "quotedPrice" | "preferredDate" | "hasReferenceImage" | "referenceImageNote" | "depositAmount" | "depositPayerName" | "depositPaidAt" | "appointmentAt" | "policyConfirmed">>,
     label: string,
   ) {
     if (!canUpdateInquiry) {
@@ -1061,6 +1063,10 @@ export default function ReplyDeskPage() {
                         <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: "8px", paddingTop: "22px" }}>
                           <input type="checkbox" checked={formDraft.isCoverup} onChange={(e) => setFormDraft({ ...formDraft, isCoverup: e.target.checked })} />
                           커버업
+                        </label>
+                        <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: "8px", paddingTop: "22px" }}>
+                          <input type="checkbox" checked={formDraft.hasReferenceImage} onChange={(e) => setFormDraft({ ...formDraft, hasReferenceImage: e.target.checked })} />
+                          참고 이미지 받음
                         </label>
                       </div>
                       <label style={{ display: "block", marginTop: "8px" }}>

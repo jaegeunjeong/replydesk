@@ -30,7 +30,7 @@ export function DetailPanel({
   onSaveReply: (id: string, reply: string) => void;
   onUpdateOperations: (
     id: string,
-    patch: Partial<Pick<Inquiry, "status" | "priority" | "assigneeId" | "internalNote" | "tattooArea" | "tattooSize" | "tattooStyle" | "isCoverup" | "sessionCount" | "quotedPrice" | "preferredDate">>,
+    patch: Partial<Pick<Inquiry, "status" | "priority" | "assigneeId" | "internalNote" | "tattooArea" | "tattooSize" | "tattooStyle" | "isCoverup" | "sessionCount" | "quotedPrice" | "preferredDate" | "hasReferenceImage" | "referenceImageNote" | "depositAmount" | "depositPayerName" | "depositPaidAt" | "appointmentAt" | "policyConfirmed">>,
     label: string,
   ) => void;
   onGenerateAi: (options: { includeDeposit: boolean; includeAftercare: boolean }) => void;
@@ -53,6 +53,14 @@ export function DetailPanel({
     sessionCount: null as number | null,
     isCoverup: false,
     preferredDate: "",
+    hasReferenceImage: false,
+    referenceImageNote: "",
+  });
+  const [depositDraft, setDepositDraft] = useState({
+    depositAmount: "",
+    depositPayerName: "",
+    appointmentAt: "",
+    policyConfirmed: false,
   });
 
   useEffect(() => {
@@ -66,8 +74,16 @@ export function DetailPanel({
       sessionCount: selected?.sessionCount ?? null,
       isCoverup: selected?.isCoverup ?? false,
       preferredDate: selected?.preferredDate ?? "",
+      hasReferenceImage: selected?.hasReferenceImage ?? false,
+      referenceImageNote: selected?.referenceImageNote ?? "",
     });
-  }, [selected?.id, selected?.reply, selected?.internalNote, selected?.tattooArea, selected?.tattooSize, selected?.tattooStyle, selected?.quotedPrice, selected?.sessionCount, selected?.isCoverup, selected?.preferredDate]);
+    setDepositDraft({
+      depositAmount: selected?.depositAmount ?? "",
+      depositPayerName: selected?.depositPayerName ?? "",
+      appointmentAt: selected?.appointmentAt ?? "",
+      policyConfirmed: selected?.policyConfirmed ?? false,
+    });
+  }, [selected?.id, selected?.reply, selected?.internalNote, selected?.tattooArea, selected?.tattooSize, selected?.tattooStyle, selected?.quotedPrice, selected?.sessionCount, selected?.isCoverup, selected?.preferredDate, selected?.hasReferenceImage, selected?.referenceImageNote, selected?.depositAmount, selected?.depositPayerName, selected?.appointmentAt, selected?.policyConfirmed]);
 
   if (!selected) {
     return (
@@ -411,6 +427,24 @@ export function DetailPanel({
               />
               커버업 여부
             </label>
+            <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <input
+                type="checkbox"
+                checked={tattooDraft.hasReferenceImage}
+                disabled={!canUpdate}
+                onChange={(e) => setTattooDraft({ ...tattooDraft, hasReferenceImage: e.target.checked })}
+              />
+              참고 이미지 받음
+            </label>
+            <label style={{ gridColumn: "1 / -1" }}>
+              참고 이미지 메모 / 링크
+              <input
+                value={tattooDraft.referenceImageNote}
+                readOnly={!canUpdate}
+                placeholder="예: 인스타 DM 3장 · 기존 타투 손목 사진, 도안 링크"
+                onChange={(e) => setTattooDraft({ ...tattooDraft, referenceImageNote: e.target.value })}
+              />
+            </label>
           </div>
           <div className="note-actions">
             <button
@@ -423,7 +457,9 @@ export function DetailPanel({
                   tattooDraft.quotedPrice === (selected.quotedPrice ?? "") &&
                   tattooDraft.sessionCount === (selected.sessionCount ?? null) &&
                   tattooDraft.isCoverup === (selected.isCoverup ?? false) &&
-                  tattooDraft.preferredDate === (selected.preferredDate ?? ""))
+                  tattooDraft.preferredDate === (selected.preferredDate ?? "") &&
+                  tattooDraft.hasReferenceImage === (selected.hasReferenceImage ?? false) &&
+                  tattooDraft.referenceImageNote === (selected.referenceImageNote ?? ""))
               }
               onClick={() =>
                 onUpdateOperations(
@@ -436,6 +472,8 @@ export function DetailPanel({
                     sessionCount: tattooDraft.sessionCount,
                     isCoverup: tattooDraft.isCoverup,
                     preferredDate: tattooDraft.preferredDate || null,
+                    hasReferenceImage: tattooDraft.hasReferenceImage,
+                    referenceImageNote: tattooDraft.referenceImageNote || null,
                   },
                   "시술 정보 수정",
                 )
@@ -443,6 +481,101 @@ export function DetailPanel({
             >
               시술 정보 저장
             </button>
+          </div>
+        </details>
+
+        <details open={selected.status === "deposit_pending" || selected.status === "booked"}>
+          <summary>예약금 · 예약 확정</summary>
+          <div className="deposit-status-row">
+            {selected.depositPaidAt ? (
+              <span className="badge check-ok">입금 확인됨 · {formatDateTime(selected.depositPaidAt)}</span>
+            ) : (
+              <span className="badge check-gap">입금 미확인</span>
+            )}
+            {selected.appointmentAt && <span className="badge">예약 일시: {selected.appointmentAt}</span>}
+          </div>
+          <div className="ops-grid">
+            <label>
+              예약금 금액
+              <input
+                value={depositDraft.depositAmount}
+                readOnly={!canUpdate}
+                placeholder="예: 50,000원"
+                onChange={(e) => setDepositDraft({ ...depositDraft, depositAmount: e.target.value })}
+              />
+            </label>
+            <label>
+              입금자명
+              <input
+                value={depositDraft.depositPayerName}
+                readOnly={!canUpdate}
+                placeholder="예: 김서연"
+                onChange={(e) => setDepositDraft({ ...depositDraft, depositPayerName: e.target.value })}
+              />
+            </label>
+            <label>
+              예약 일시
+              <input
+                value={depositDraft.appointmentAt}
+                readOnly={!canUpdate}
+                placeholder="예: 7/20(토) 오후 2시"
+                onChange={(e) => setDepositDraft({ ...depositDraft, appointmentAt: e.target.value })}
+              />
+            </label>
+            <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <input
+                type="checkbox"
+                checked={depositDraft.policyConfirmed}
+                disabled={!canUpdate}
+                onChange={(e) => setDepositDraft({ ...depositDraft, policyConfirmed: e.target.checked })}
+              />
+              노쇼/환불 정책 안내·동의
+            </label>
+          </div>
+          <div className="note-actions">
+            <button
+              className="secondary"
+              disabled={
+                !canUpdate ||
+                (depositDraft.depositAmount === (selected.depositAmount ?? "") &&
+                  depositDraft.depositPayerName === (selected.depositPayerName ?? "") &&
+                  depositDraft.appointmentAt === (selected.appointmentAt ?? "") &&
+                  depositDraft.policyConfirmed === (selected.policyConfirmed ?? false))
+              }
+              onClick={() =>
+                onUpdateOperations(
+                  selected.id,
+                  {
+                    depositAmount: depositDraft.depositAmount || null,
+                    depositPayerName: depositDraft.depositPayerName || null,
+                    appointmentAt: depositDraft.appointmentAt || null,
+                    policyConfirmed: depositDraft.policyConfirmed,
+                  },
+                  "예약금 정보 수정",
+                )
+              }
+            >
+              예약금 정보 저장
+            </button>
+            {!selected.depositPaidAt && (
+              <button
+                className="primary"
+                disabled={!canUpdate}
+                title={!canUpdate ? "수정 권한 필요" : undefined}
+                onClick={() =>
+                  onUpdateOperations(
+                    selected.id,
+                    {
+                      depositPaidAt: new Date().toISOString(),
+                      ...(selected.status === "deposit_pending" ? { status: "booked" as Status } : {}),
+                    },
+                    "예약금 입금 확인",
+                  )
+                }
+              >
+                입금 확인{selected.status === "deposit_pending" ? " → 예약 확정" : ""}
+              </button>
+            )}
           </div>
         </details>
 

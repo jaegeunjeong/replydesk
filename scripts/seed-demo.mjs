@@ -59,6 +59,7 @@ const seeds = [
     status: "quoted",
     customerStatus: "consulted",
     tattoo: { area: "등", size: "15cm", style: "watercolor", coverup: false, sessions: 1, price: "450,000원", preferredDate: "7월 중순" },
+    reference: { has: true, note: "인스타 DM 레퍼런스 이미지 2장" },
     reply: "이하나님, 문의 주셔서 감사합니다.\n\n등 부위 수채화 꽃 타투 15cm 기준으로 450,000원부터 안내드립니다. 디자인 복잡도에 따라 변동될 수 있어요.\n\n희망하시는 날짜를 알려주시면 예약금 안내와 함께 일정을 잡아드리겠습니다.",
     agoDays: 0,
     timeline: [
@@ -78,6 +79,8 @@ const seeds = [
     status: "deposit_pending",
     customerStatus: "consulted",
     tattoo: { area: "팔 전체(반팔)", size: "반팔", style: "blackwork", coverup: false, sessions: 2, price: "800,000원 (2세션)", preferredDate: "7/11 토요일 오후" },
+    reference: { has: true, note: "도안 정해둠 — 전화 상담 시 확인" },
+    booking: { amount: "240,000원", payer: null, paidAtDays: null, appointmentAt: "7/11(토) 오후 2시", policy: true },
     reply: "최도윤님, 문의 주셔서 감사합니다.\n\n블랙워크 반팔은 2~3세션 기준 800,000원부터입니다. 7/11 토요일 오후 시간 비어 있습니다.\n\n견적의 30%인 240,000원을 예약금으로 입금해 주시면 예약이 확정됩니다. 계좌 안내드릴게요.",
     agoDays: 0,
     timeline: [
@@ -97,6 +100,8 @@ const seeds = [
     status: "booked",
     customerStatus: "booked",
     tattoo: { area: "갈비뼈", size: "7cm", style: "linework", coverup: false, sessions: 1, price: "250,000원", preferredDate: "7/8 오후 2시" },
+    reference: { has: true, note: "도안 확정본 수신" },
+    booking: { amount: "75,000원", payer: "정하린", paidAtDays: 1, appointmentAt: "7/8(수) 오후 2시", policy: true },
     reply: "정하린님, 예약이 확정되었습니다.\n\n7/8(수) 오후 2시, 갈비뼈 라인워크 7cm 기준 250,000원입니다. 예약금 75,000원 입금 확인했습니다.\n\n시술 24시간 전 음주를 삼가고, 충분한 수면과 수분 섭취를 부탁드려요. 갈비뼈 부위는 통증이 있는 편이니 컨디션 관리해 주세요.",
     agoDays: 1,
     timeline: [
@@ -196,19 +201,25 @@ try {
       label,
     }));
 
+    const reference = seed.reference ?? { has: false, note: null };
+    const booking = seed.booking ?? { amount: null, payer: null, paidAtDays: null, appointmentAt: null, policy: false };
+    const depositPaidAt = booking.paidAtDays == null ? null : isoDaysAgo(booking.paidAtDays);
+
     await client.query(
       `
       insert into inquiries (
         id, workspace_id, customer_id, customer_name, channel, message, category, priority, keywords,
         reply, status, profile, tone, response_window, timeline,
         tattoo_area, tattoo_size, tattoo_style, is_coverup, session_count, quoted_price, preferred_date,
+        has_reference_image, reference_image_note, deposit_amount, deposit_payer_name, deposit_paid_at, appointment_at, policy_confirmed,
         created_at, updated_at
       )
       values (
         $1, $2, $3, $4, $5, $6, $7, $8, $9,
         $10, $11, 'tattoo', 'warm', 'same-day', $12::jsonb,
         $13, $14, $15, $16, $17, $18, $19,
-        now() - make_interval(days => $20), now()
+        $20, $21, $22, $23, $24::timestamptz, $25, $26,
+        now() - make_interval(days => $27), now()
       )
       on conflict (id) do update set
         customer_id = excluded.customer_id,
@@ -226,6 +237,13 @@ try {
         session_count = excluded.session_count,
         quoted_price = excluded.quoted_price,
         preferred_date = excluded.preferred_date,
+        has_reference_image = excluded.has_reference_image,
+        reference_image_note = excluded.reference_image_note,
+        deposit_amount = excluded.deposit_amount,
+        deposit_payer_name = excluded.deposit_payer_name,
+        deposit_paid_at = excluded.deposit_paid_at,
+        appointment_at = excluded.appointment_at,
+        policy_confirmed = excluded.policy_confirmed,
         created_at = excluded.created_at,
         updated_at = now()
       `,
@@ -249,6 +267,13 @@ try {
         seed.tattoo.sessions,
         seed.tattoo.price,
         seed.tattoo.preferredDate,
+        reference.has,
+        reference.note,
+        booking.amount,
+        booking.payer,
+        depositPaidAt,
+        booking.appointmentAt,
+        booking.policy,
         seed.agoDays,
       ],
     );

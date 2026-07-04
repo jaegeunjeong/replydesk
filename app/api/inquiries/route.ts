@@ -31,6 +31,13 @@ type InquiryPayload = {
   sessionCount?: number | null;
   quotedPrice?: string | null;
   preferredDate?: string | null;
+  hasReferenceImage?: boolean;
+  referenceImageNote?: string | null;
+  depositAmount?: string | null;
+  depositPayerName?: string | null;
+  depositPaidAt?: string | null;
+  appointmentAt?: string | null;
+  policyConfirmed?: boolean;
 };
 
 export async function GET(request: NextRequest) {
@@ -71,7 +78,14 @@ export async function GET(request: NextRequest) {
       is_coverup as "isCoverup",
       session_count as "sessionCount",
       quoted_price as "quotedPrice",
-      preferred_date as "preferredDate"
+      preferred_date as "preferredDate",
+      has_reference_image as "hasReferenceImage",
+      reference_image_note as "referenceImageNote",
+      deposit_amount as "depositAmount",
+      deposit_payer_name as "depositPayerName",
+      deposit_paid_at as "depositPaidAt",
+      appointment_at as "appointmentAt",
+      policy_confirmed as "policyConfirmed"
     from inquiries
     where workspace_id = $1
     order by created_at desc
@@ -166,6 +180,13 @@ export async function POST(request: NextRequest) {
           session_count,
           quoted_price,
           preferred_date,
+          has_reference_image,
+          reference_image_note,
+          deposit_amount,
+          deposit_payer_name,
+          deposit_paid_at,
+          appointment_at,
+          policy_confirmed,
           created_at,
           updated_at
         )
@@ -176,6 +197,7 @@ export async function POST(request: NextRequest) {
           $16, $17, $18::jsonb, $19::jsonb,
           $20, $21, $22::jsonb,
           $23, $24, $25, $26, $27, $28, $29,
+          $30, $31, $32, $33, $34, $35, $36,
           now(), now()
         )
         on conflict (id) do update set
@@ -206,6 +228,13 @@ export async function POST(request: NextRequest) {
           session_count = excluded.session_count,
           quoted_price = excluded.quoted_price,
           preferred_date = excluded.preferred_date,
+          has_reference_image = excluded.has_reference_image,
+          reference_image_note = excluded.reference_image_note,
+          deposit_amount = excluded.deposit_amount,
+          deposit_payer_name = excluded.deposit_payer_name,
+          deposit_paid_at = excluded.deposit_paid_at,
+          appointment_at = excluded.appointment_at,
+          policy_confirmed = excluded.policy_confirmed,
           updated_at = now()
         `,
         [
@@ -238,6 +267,13 @@ export async function POST(request: NextRequest) {
           inquiry.sessionCount || null,
           inquiry.quotedPrice || null,
           inquiry.preferredDate || null,
+          inquiry.hasReferenceImage || false,
+          inquiry.referenceImageNote || null,
+          inquiry.depositAmount || null,
+          inquiry.depositPayerName || null,
+          inquiry.depositPaidAt || null,
+          inquiry.appointmentAt || null,
+          inquiry.policyConfirmed || false,
         ],
       );
     }

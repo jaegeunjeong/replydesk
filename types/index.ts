@@ -73,6 +73,13 @@ export type Inquiry = {
   sessionCount?: number | null;
   quotedPrice?: string | null;
   preferredDate?: string | null;
+  hasReferenceImage?: boolean;
+  referenceImageNote?: string | null;
+  depositAmount?: string | null;
+  depositPayerName?: string | null;
+  depositPaidAt?: string | null;
+  appointmentAt?: string | null;
+  policyConfirmed?: boolean;
 };
 
 export type Settings = {

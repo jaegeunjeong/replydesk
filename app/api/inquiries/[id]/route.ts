@@ -52,6 +52,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       session_count = coalesce($24, session_count),
       quoted_price = coalesce($25, quoted_price),
       preferred_date = coalesce($26, preferred_date),
+      has_reference_image = coalesce($27, has_reference_image),
+      reference_image_note = coalesce($28, reference_image_note),
+      deposit_amount = coalesce($29, deposit_amount),
+      deposit_payer_name = coalesce($30, deposit_payer_name),
+      deposit_paid_at = coalesce($31::timestamptz, deposit_paid_at),
+      appointment_at = coalesce($32, appointment_at),
+      policy_confirmed = coalesce($33, policy_confirmed),
       updated_at = now()
     where id = $1
       and workspace_id = $2
@@ -84,7 +91,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       is_coverup as "isCoverup",
       session_count as "sessionCount",
       quoted_price as "quotedPrice",
-      preferred_date as "preferredDate"
+      preferred_date as "preferredDate",
+      has_reference_image as "hasReferenceImage",
+      reference_image_note as "referenceImageNote",
+      deposit_amount as "depositAmount",
+      deposit_payer_name as "depositPayerName",
+      deposit_paid_at as "depositPaidAt",
+      appointment_at as "appointmentAt",
+      policy_confirmed as "policyConfirmed"
     `,
     [
       id,
@@ -113,6 +127,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       body.sessionCount ?? null,
       body.quotedPrice ?? null,
       body.preferredDate ?? null,
+      body.hasReferenceImage ?? null,
+      body.referenceImageNote ?? null,
+      body.depositAmount ?? null,
+      body.depositPayerName ?? null,
+      body.depositPaidAt ?? null,
+      body.appointmentAt ?? null,
+      body.policyConfirmed ?? null,
     ],
   );
 

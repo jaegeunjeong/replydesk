@@ -3347,6 +3347,13 @@ select {
   gap: 6px;
 }
 
+.deposit-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
 .check-badge-row .check-empty {
   font-size: 12px;
   color: #9aa19d;
