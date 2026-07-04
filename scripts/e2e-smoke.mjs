@@ -70,6 +70,28 @@ function parseResponseBody(text, method, path, status, allowNonJson = false) {
   }
 }
 
+// 쿠키 자를 그대로 쓰되 본문을 그대로 보내는 요청 (multipart 업로드용).
+async function rawRequest(path, options = {}) {
+  const headers = new Headers(options.headers || {});
+  if (cookies.size > 0) {
+    headers.set(
+      "cookie",
+      Array.from(cookies.entries())
+        .map(([key, value]) => `${key}=${value}`)
+        .join("; "),
+    );
+  }
+  const response = await fetch(`${baseUrl}${path}`, { ...options, headers });
+  storeCookies(response.headers);
+  return response;
+}
+
+// 1x1 PNG (검증용 최소 이미지)
+const PNG_1x1 = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+  "base64",
+);
+
 function storeCookies(headers) {
   const setCookies = typeof headers.getSetCookie === "function" ? headers.getSetCookie() : splitSetCookie(headers.get("set-cookie"));
   for (const entry of setCookies) {
@@ -254,6 +276,51 @@ async function main() {
   const inquiries = await request("/api/inquiries");
   const created = (inquiries.data.inquiries || []).find((entry) => entry.id === inquiryId);
   assert(created?.customer === customerName, "Inquiry list includes created inquiry");
+
+  // 참고 이미지 업로드 → 목록 → 스트리밍 → 인증 게이트 → 삭제
+  const uploadForm = new FormData();
+  uploadForm.append("files", new Blob([PNG_1x1], { type: "image/png" }), "e2e-ref.png");
+  const uploadRes = await rawRequest(`/api/inquiries/${encodeURIComponent(inquiryId)}/images`, {
+    method: "POST",
+    body: uploadForm,
+  });
+  const uploadData = await uploadRes.json();
+  assert(
+    uploadRes.ok && Array.isArray(uploadData.images) && uploadData.images.length === 1,
+    "Reference image upload",
+    `${uploadData.images?.length ?? 0} image`,
+  );
+  const uploadedImageId = uploadData.images[0].id;
+
+  const imageList = await request(`/api/inquiries/${encodeURIComponent(inquiryId)}/images`);
+  assert(
+    (imageList.data.images || []).some((img) => img.id === uploadedImageId),
+    "Reference image list includes upload",
+  );
+
+  const streamRes = await rawRequest(`/api/inquiries/${encodeURIComponent(inquiryId)}/images/${uploadedImageId}`);
+  const streamBytes = Buffer.from(await streamRes.arrayBuffer());
+  assert(
+    streamRes.ok && streamRes.headers.get("content-type") === "image/png" && streamBytes.length === PNG_1x1.length,
+    "Reference image streams with correct type",
+    `${streamBytes.length} bytes`,
+  );
+
+  const anonStream = await fetch(`${baseUrl}/api/inquiries/${encodeURIComponent(inquiryId)}/images/${uploadedImageId}`);
+  assert(anonStream.status === 403, "Reference image stream rejects unauthenticated", `status ${anonStream.status}`);
+
+  const badUpload = new FormData();
+  badUpload.append("files", new Blob([Buffer.from("not an image")], { type: "image/png" }), "bad.png");
+  const badRes = await rawRequest(`/api/inquiries/${encodeURIComponent(inquiryId)}/images`, {
+    method: "POST",
+    body: badUpload,
+  });
+  assert(badRes.status === 415, "Reference image rejects non-image bytes", `status ${badRes.status}`);
+
+  const deleteImage = await request(`/api/inquiries/${encodeURIComponent(inquiryId)}/images/${uploadedImageId}`, {
+    method: "DELETE",
+  });
+  assert(deleteImage.data.ok === true, "Reference image delete");
 
   const reportBeforeUpdate = await request("/api/report/daily?tz=Asia%2FSeoul");
   assert(reportBeforeUpdate.data.report?.today?.total >= 1, "Daily report includes today's inquiries", `${reportBeforeUpdate.data.report.today.total} total`);

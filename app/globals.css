@@ -3434,6 +3434,103 @@ select {
   margin-bottom: 12px;
 }
 
+/* 참고 이미지 갤러리 */
+.reference-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: #faf9f5;
+  border: 1px solid #e4e7e3;
+  border-radius: 10px;
+}
+
+.reference-gallery-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.reference-gallery-head > span {
+  font-size: 12px;
+  font-weight: 700;
+  color: #4a524e;
+}
+
+.reference-upload-btn {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0d7369;
+  background: #e7f4ec;
+  border: 1px solid #cbe7d6;
+  border-radius: 8px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+
+.reference-upload-btn.disabled {
+  color: #9aa19d;
+  background: #f0f2f0;
+  border-color: #e0e3e0;
+  cursor: not-allowed;
+}
+
+.reference-gallery-empty {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #9aa19d;
+}
+
+.reference-thumb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+}
+
+.reference-thumb {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #dce1de;
+  background: #fff;
+}
+
+.reference-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.reference-thumb-delete {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 20px;
+  height: 20px;
+  line-height: 18px;
+  text-align: center;
+  border-radius: 999px;
+  border: 0;
+  background: rgba(26, 31, 30, 0.62);
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.reference-thumb-delete:hover {
+  background: rgba(192, 58, 58, 0.9);
+}
+
+.reference-gallery-status {
+  margin: 0;
+  font-size: 11.5px;
+  color: #6b7572;
+}
+
 .check-badge-row .check-empty {
   font-size: 12px;
   color: #9aa19d;

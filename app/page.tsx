@@ -17,12 +17,15 @@ import type {
   OnboardingDraft,
   BusinessProfileKey,
   TattooStyle,
+  InquiryImage,
 } from "@/types";
+import { resizeImageForUpload } from "@/lib/clientImage";
 
 import {
   ONBOARDING_KEY,
   DEFAULT_USER_ID,
   DEFAULT_WORKSPACE_ID,
+  MAX_REFERENCE_IMAGES,
   appViews,
   categoryLabels,
   defaultSettings,
@@ -127,6 +130,8 @@ export default function ReplyDeskPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [inputText, setInputText] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [inquiryImages, setInquiryImages] = useState<InquiryImage[]>([]);
+  const [imageStatus, setImageStatus] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<Status | "all">("all");
   const [categoryFilter, setCategoryFilter] = useState<"quote" | "booking" | "coverup" | "retouch" | "aftercare" | "general" | "all">("all");
@@ -156,6 +161,28 @@ export default function ReplyDeskPage() {
     setMounted(true);
     void bootstrap();
   }, []);
+
+  // 선택된 문의가 바뀌면 참고 이미지 목록을 새로 불러온다.
+  useEffect(() => {
+    if (!selectedId) {
+      setInquiryImages([]);
+      setImageStatus("");
+      return;
+    }
+    let cancelled = false;
+    setImageStatus("");
+    fetch(`/api/inquiries/${encodeURIComponent(selectedId)}/images`)
+      .then((res) => (res.ok ? res.json() : { images: [] }))
+      .then((data) => {
+        if (!cancelled) setInquiryImages((data.images as InquiryImage[]) ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setInquiryImages([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId]);
 
   // --- Derived state ---
   const selected = inquiries.find((i) => i.id === selectedId) ?? null;
@@ -809,6 +836,63 @@ export default function ReplyDeskPage() {
     setAiStatus(`AI 초안을 생성했습니다. 사용 모델: ${result.model ?? "서버 설정"}`);
   }
 
+  async function uploadInquiryImages(inquiryId: string, files: File[]) {
+    if (!canUpdateInquiry) {
+      setImageStatus("참고 이미지 첨부 권한이 없습니다.");
+      return;
+    }
+    if (files.length === 0) return;
+    const remaining = MAX_REFERENCE_IMAGES - inquiryImages.length;
+    if (remaining <= 0) {
+      setImageStatus(`참고 이미지는 최대 ${MAX_REFERENCE_IMAGES}장까지 첨부할 수 있습니다.`);
+      return;
+    }
+    const targets = files.slice(0, remaining);
+    setImageStatus("이미지를 업로드하는 중입니다…");
+    // 요청 본문 크기 제한을 피하려고 리사이즈 후 한 장씩 순차 업로드한다.
+    const added: InquiryImage[] = [];
+    for (const file of targets) {
+      try {
+        const resized = await resizeImageForUpload(file);
+        const form = new FormData();
+        form.append("files", resized, resized.name);
+        const res = await fetch(`/api/inquiries/${encodeURIComponent(inquiryId)}/images`, { method: "POST", body: form });
+        const data = (await readJsonResponse(res)) as { images?: InquiryImage[]; error?: string };
+        if (!res.ok || !data.images) {
+          setImageStatus(data.error || "이미지 업로드에 실패했습니다.");
+          break;
+        }
+        added.push(...data.images);
+      } catch (error) {
+        setImageStatus(error instanceof Error ? error.message : "이미지 처리 중 오류가 발생했습니다.");
+        break;
+      }
+    }
+    if (added.length > 0) {
+      setInquiryImages((current) => [...current, ...added]);
+      // 서버가 has_reference_image를 켰으므로 로컬 상태도 맞춰준다.
+      setInquiries((current) => current.map((i) => (i.id === inquiryId ? { ...i, hasReferenceImage: true } : i)));
+      setImageStatus(`참고 이미지 ${added.length}장을 첨부했습니다.`);
+    }
+  }
+
+  async function deleteInquiryImageById(inquiryId: string, imageId: string) {
+    if (!canUpdateInquiry) {
+      setImageStatus("참고 이미지 삭제 권한이 없습니다.");
+      return;
+    }
+    const res = await fetch(`/api/inquiries/${encodeURIComponent(inquiryId)}/images/${encodeURIComponent(imageId)}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) {
+      const data = (await readJsonResponse(res)) as { error?: string };
+      setImageStatus(data.error || "이미지 삭제에 실패했습니다.");
+      return;
+    }
+    setInquiryImages((current) => current.filter((img) => img.id !== imageId));
+    setImageStatus("참고 이미지를 삭제했습니다.");
+  }
+
   async function readJsonResponse(response: Response) {
     const text = await response.text();
     if (!text) return {};
@@ -1202,6 +1286,10 @@ export default function ReplyDeskPage() {
                   aftercare: /애프터케어|관리/.test(`${currentKnowledge.prices}\n${currentKnowledge.faq}`),
                 }}
                 knowledgeSource={selected ? (knowledge[selected.profile] ?? currentKnowledge) : currentKnowledge}
+                images={inquiryImages}
+                imageStatus={imageStatus}
+                onUploadImages={(files) => selected && void uploadInquiryImages(selected.id, files)}
+                onDeleteImage={(imageId) => selected && void deleteInquiryImageById(selected.id, imageId)}
                 onDelete={(id) =>
                   requestConfirm({
                     title: "문의 삭제",

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Inquiry, WorkspaceMember, Status, TattooStyle } from "@/types";
-import { categoryLabels, statusLabels, toneProfiles, tattooStyleLabels } from "@/lib/constants";
+import type { Inquiry, WorkspaceMember, Status, TattooStyle, InquiryImage } from "@/types";
+import { categoryLabels, statusLabels, toneProfiles, tattooStyleLabels, MAX_REFERENCE_IMAGES } from "@/lib/constants";
 import { getCustomerHistory, getInquiryTimeline, normalizeAiQuality, getConsultChecklist, getKnowledgeSourceUsage } from "@/lib/inquiry";
 import { formatDateTime } from "@/lib/utils";
 import { Meta, PermissionNotice } from "@/components/shared";
@@ -18,6 +18,10 @@ export function DetailPanel({
   aiStatus,
   knowledgeReadiness,
   knowledgeSource,
+  images,
+  imageStatus,
+  onUploadImages,
+  onDeleteImage,
   onDelete,
   canUpdate,
   canDelete,
@@ -38,6 +42,10 @@ export function DetailPanel({
   aiStatus: string;
   knowledgeReadiness: { deposit: boolean; aftercare: boolean };
   knowledgeSource: { prices: string; faq: string };
+  images: InquiryImage[];
+  imageStatus: string;
+  onUploadImages: (files: File[]) => void;
+  onDeleteImage: (imageId: string) => void;
   onDelete: (id: string) => void;
   canUpdate: boolean;
   canDelete: boolean;
@@ -474,6 +482,60 @@ export function DetailPanel({
                 onChange={(e) => setTattooDraft({ ...tattooDraft, referenceImageNote: e.target.value })}
               />
             </label>
+
+            <div className="reference-gallery" style={{ gridColumn: "1 / -1" }}>
+              <div className="reference-gallery-head">
+                <span>참고 이미지 {images.length > 0 ? `${images.length}/${MAX_REFERENCE_IMAGES}` : ""}</span>
+                <label
+                  className={`reference-upload-btn ${!canUpdate || images.length >= MAX_REFERENCE_IMAGES ? "disabled" : ""}`}
+                  title={!canUpdate ? "수정 권한 필요" : images.length >= MAX_REFERENCE_IMAGES ? "최대 장수 도달" : undefined}
+                >
+                  이미지 첨부
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    multiple
+                    disabled={!canUpdate || images.length >= MAX_REFERENCE_IMAGES}
+                    style={{ display: "none" }}
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files ?? []);
+                      if (files.length > 0) onUploadImages(files);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              </div>
+              {images.length === 0 ? (
+                <p className="reference-gallery-empty">
+                  첨부된 참고 이미지가 없습니다. 커버업·리터치·도안 상담은 이미지를 받으면 견적이 정확해집니다.
+                </p>
+              ) : (
+                <div className="reference-thumb-grid">
+                  {images.map((img) => {
+                    const src = `/api/inquiries/${selected.id}/images/${img.id}`;
+                    return (
+                      <div className="reference-thumb" key={img.id}>
+                        <a href={src} target="_blank" rel="noreferrer">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={src} alt={img.filename} loading="lazy" />
+                        </a>
+                        {canUpdate && (
+                          <button
+                            type="button"
+                            className="reference-thumb-delete"
+                            title="이미지 삭제"
+                            onClick={() => onDeleteImage(img.id)}
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {imageStatus && <p className="reference-gallery-status">{imageStatus}</p>}
+            </div>
           </div>
           <div className="note-actions">
             <button

@@ -6,6 +6,9 @@ export const DEFAULT_AI_MODEL = "gpt-4.1-nano";
 export const DEFAULT_USER_ID = "demo-owner";
 export const DEFAULT_WORKSPACE_ID = "default-workspace";
 
+// 참고 이미지 첨부 한도 (클라이언트/서버 공용, 서버는 lib/inquiryImages.ts에서 재사용)
+export const MAX_REFERENCE_IMAGES = 8;
+
 export const manageableRoles: WorkspaceRole[] = ["member"];
 
 export const appViews: Array<{ key: AppView; label: string; description: string }> = [

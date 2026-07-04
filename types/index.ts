@@ -117,6 +117,17 @@ export type Customer = {
   lastInquiryAt?: string | null;
 };
 
+export type InquiryImage = {
+  id: string;
+  inquiryId: string;
+  filename: string;
+  mime: string;
+  byteSize: number;
+  width: number | null;
+  height: number | null;
+  createdAt: string;
+};
+
 export type DemoUser = {
   id: string;
   name: string;

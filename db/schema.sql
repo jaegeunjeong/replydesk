@@ -161,6 +161,25 @@ alter table inquiries
   add column if not exists appointment_at text,
   add column if not exists policy_confirmed boolean not null default false;
 
+-- 참고 이미지/도안/기존 타투 사진을 문의에 첨부 저장.
+-- 1차 구현은 별도 오브젝트 스토리지 없이 Postgres bytea에 보관한다.
+-- (lib/inquiryImages.ts로 접근을 캡슐화 → 이후 R2/S3로 교체 시 그 파일만 수정)
+create table if not exists inquiry_images (
+  id text primary key,
+  inquiry_id text not null references inquiries(id) on delete cascade,
+  workspace_id text not null references workspaces(id) on delete cascade,
+  filename text not null,
+  mime text not null,
+  byte_size integer not null,
+  width integer,
+  height integer,
+  data bytea not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists inquiry_images_inquiry_idx on inquiry_images(inquiry_id, created_at);
+create index if not exists inquiry_images_workspace_idx on inquiry_images(workspace_id);
+
 -- 상태값을 타투 예약 전환 파이프라인으로 마이그레이션 (구 범용 CS 상태 → 신규 상태)
 update inquiries set status = 'quoted' where status = 'drafted';
 update inquiries set status = 'info_requested' where status = 'pending';
