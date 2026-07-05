@@ -137,8 +137,9 @@ export default function ReplyDeskPage() {
   const [categoryFilter, setCategoryFilter] = useState<"quote" | "booking" | "coverup" | "retouch" | "aftercare" | "general" | "all">("all");
   const [customerFilter, setCustomerFilter] = useState("all");
   const [aiStatus, setAiStatus] = useState("문의를 선택하고 AI 초안 생성을 누르면 답변이 채워집니다.");
-  const [dbStatus, setDbStatus] = useState("DB 연결 확인 중입니다.");
+  const [dbStatus, setDbStatus] = useState("상담 정보를 준비하고 있어요.");
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
   const [wizardDraft, setWizardDraft] = useState<OnboardingDraft>(() => createOnboardingDraft(defaultSettings));
   const [memberDraft, setMemberDraft] = useState({ name: "", email: "", role: "member" as WorkspaceRole });
@@ -183,6 +184,13 @@ export default function ReplyDeskPage() {
       cancelled = true;
     };
   }, [selectedId]);
+
+  // 저장·불러오기 안내 문구는 잠깐 보여준 뒤 자동으로 사라지게 한다. (불러오는 중일 때는 유지)
+  useEffect(() => {
+    if (isLoading || !dbStatus) return;
+    const timer = setTimeout(() => setDbStatus(""), 3200);
+    return () => clearTimeout(timer);
+  }, [dbStatus, isLoading]);
 
   // --- Derived state ---
   const selected = inquiries.find((i) => i.id === selectedId) ?? null;
@@ -251,7 +259,7 @@ export default function ReplyDeskPage() {
       const authenticated = await loadSession();
       if (authenticated) await hydrateFromDatabase();
     } catch (error) {
-      setDbStatus(error instanceof Error ? `초기 세션 로딩 실패: ${error.message}` : "초기 세션 로딩 실패");
+      setDbStatus("상담 정보를 불러오지 못했어요. 잠시 후 다시 시도해주세요.");
       setIsLoading(false);
     }
   }
@@ -499,7 +507,7 @@ export default function ReplyDeskPage() {
 
   async function hydrateFromDatabase() {
     setIsLoading(true);
-    setDbStatus("DB에서 문의와 설정을 불러오는 중입니다.");
+    setDbStatus("상담 정보를 불러오는 중이에요.");
 
     try {
       const [settingsRes, knowledgeRes, inquiriesRes, customersRes, membersRes] = await Promise.all([
@@ -511,7 +519,7 @@ export default function ReplyDeskPage() {
       ]);
 
       if (!settingsRes.ok || !knowledgeRes.ok || !inquiriesRes.ok || !customersRes.ok || !membersRes.ok) {
-        throw new Error("DB API 응답이 올바르지 않습니다.");
+        throw new Error("상담 정보를 불러오지 못했어요.");
       }
 
       const settingsPayload = (await settingsRes.json()) as { settings: Settings };
@@ -543,7 +551,7 @@ export default function ReplyDeskPage() {
       setSelectedId(inquiriesPayload.inquiries?.[0]?.id ?? null);
       setWizardDraft(createOnboardingDraft(nextSettings));
       if (!localStorage.getItem(ONBOARDING_KEY)) setWizardOpen(true);
-      setDbStatus("로컬 PostgreSQL에 연결되었습니다.");
+      setDbStatus("상담 정보를 불러왔어요.");
     } catch (error) {
       setInquiries([]);
       setCustomers([]);
@@ -551,7 +559,7 @@ export default function ReplyDeskPage() {
       setSettings(defaultSettings);
       setKnowledge(defaultKnowledge);
       setSelectedId(null);
-      setDbStatus(error instanceof Error ? `DB 연결 실패: ${error.message}` : "DB 연결 실패");
+      setDbStatus("상담 정보를 불러오지 못했어요. 잠시 후 다시 시도해주세요.");
     } finally {
       setIsLoading(false);
     }
@@ -565,9 +573,9 @@ export default function ReplyDeskPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ inquiries: next }),
       });
-      if (!res.ok) throw new Error("문의 저장 실패");
+      if (!res.ok) throw new Error("상담을 저장하지 못했어요. 다시 시도해주세요.");
       await refreshCustomersFromDatabase();
-      setDbStatus("문의가 DB에 저장되었습니다.");
+      setDbStatus("상담을 저장했어요.");
     } catch (error) {
       setDbStatus(error instanceof Error ? error.message : "문의 저장 실패");
     }
@@ -580,8 +588,8 @@ export default function ReplyDeskPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(next),
       });
-      if (!res.ok) throw new Error("설정 저장 실패");
-      setDbStatus("설정이 DB에 저장되었습니다.");
+      if (!res.ok) throw new Error("설정을 저장하지 못했어요. 다시 시도해주세요.");
+      setDbStatus("설정을 저장했어요.");
     } catch (error) {
       setDbStatus(error instanceof Error ? error.message : "설정 저장 실패");
     }
@@ -594,8 +602,8 @@ export default function ReplyDeskPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ profile, prices, faq }),
       });
-      if (!res.ok) throw new Error("가격표/FAQ 저장 실패");
-      setDbStatus("가격표/FAQ가 DB에 저장되었습니다.");
+      if (!res.ok) throw new Error("지식베이스를 저장하지 못했어요. 다시 시도해주세요.");
+      setDbStatus("지식베이스를 저장했어요.");
     } catch (error) {
       setDbStatus(error instanceof Error ? error.message : "가격표/FAQ 저장 실패");
     }
@@ -608,10 +616,10 @@ export default function ReplyDeskPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),
       });
-      if (!res.ok) throw new Error("문의 수정 저장 실패");
+      if (!res.ok) throw new Error("수정 내용을 저장하지 못했어요. 다시 시도해주세요.");
       const payload = (await res.json()) as { inquiry: Inquiry };
       setInquiries((current) => current.map((i) => (i.id === id ? payload.inquiry : i)));
-      setDbStatus("문의 수정 사항이 DB에 저장되었습니다.");
+      setDbStatus("수정 내용을 저장했어요.");
     } catch (error) {
       setDbStatus(error instanceof Error ? error.message : "문의 수정 저장 실패");
     }
@@ -624,14 +632,14 @@ export default function ReplyDeskPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),
       });
-      if (!res.ok) throw new Error("고객 프로필 저장 실패");
+      if (!res.ok) throw new Error("고객 정보를 저장하지 못했어요. 다시 시도해주세요.");
       const payload = (await res.json()) as { customer: Customer };
       setCustomers((current) =>
         current.map((c) =>
           c.id === id ? { ...c, ...payload.customer, inquiryCount: c.inquiryCount, lastInquiryAt: c.lastInquiryAt } : c,
         ),
       );
-      setDbStatus("고객 프로필이 DB에 저장되었습니다.");
+      setDbStatus("고객 정보를 저장했어요.");
     } catch (error) {
       setDbStatus(error instanceof Error ? error.message : "고객 프로필 저장 실패");
     }
@@ -640,9 +648,9 @@ export default function ReplyDeskPage() {
   async function deleteInquiryFromDatabase(id: string) {
     try {
       const res = await fetch(`/api/inquiries/${encodeURIComponent(id)}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("문의 삭제 실패");
+      if (!res.ok) throw new Error("문의를 삭제하지 못했어요. 다시 시도해주세요.");
       await refreshCustomersFromDatabase();
-      setDbStatus("선택 문의가 DB에서 삭제되었습니다.");
+      setDbStatus("문의를 삭제했어요.");
     } catch (error) {
       setDbStatus(error instanceof Error ? error.message : "문의 삭제 실패");
     }
@@ -651,9 +659,9 @@ export default function ReplyDeskPage() {
   async function deleteInquiriesFromDatabase() {
     try {
       const res = await fetch("/api/inquiries", { method: "DELETE" });
-      if (!res.ok) throw new Error("문의 초기화 실패");
+      if (!res.ok) throw new Error("문의를 삭제하지 못했어요. 다시 시도해주세요.");
       await refreshCustomersFromDatabase();
-      setDbStatus("문의가 DB에서도 초기화되었습니다.");
+      setDbStatus("문의를 모두 삭제했어요.");
     } catch (error) {
       setDbStatus(error instanceof Error ? error.message : "문의 초기화 실패");
     }
@@ -661,14 +669,14 @@ export default function ReplyDeskPage() {
 
   async function refreshCustomersFromDatabase() {
     const res = await fetch("/api/customers");
-    if (!res.ok) throw new Error("고객 목록 새로고침 실패");
+    if (!res.ok) throw new Error("고객 목록을 새로고침하지 못했어요.");
     const payload = (await res.json()) as { customers: Customer[] };
     setCustomers(payload.customers ?? []);
   }
 
   async function refreshMembersFromDatabase() {
     const res = await fetch("/api/members");
-    if (!res.ok) throw new Error("멤버 목록 새로고침 실패");
+    if (!res.ok) throw new Error("멤버 목록을 새로고침하지 못했어요.");
     const payload = (await res.json()) as { members: WorkspaceMember[] };
     setMembers(payload.members ?? []);
   }
@@ -1013,7 +1021,7 @@ export default function ReplyDeskPage() {
                 : "워크스페이스를 불러오는 중입니다."}
             </p>
           </div>
-          <div className="actions" style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:'10px'}}>
+          <div className="actions" style={{display:'flex',alignItems:'center',gap:'10px'}}>
             <div className="session-controls">
               <select value={selectedWorkspaceId} onChange={(e) => void changeWorkspace(e.target.value)} style={{height:'36px',borderRadius:'9px'}}>
                 {userWorkspaces.map((ws) => (
@@ -1030,45 +1038,85 @@ export default function ReplyDeskPage() {
                 </div>
               </div>
             </div>
-            <div style={{display:'flex',gap:'8px',flexWrap:'wrap',justifyContent:'flex-end'}}>
-              <label className="file-button" style={{height:'32px',minHeight:'32px',padding:'0 13px',fontSize:'12px'}}>
-                CSV 가져오기
-                <input type="file" accept=".csv,text/csv" onChange={(e) => importCsv(e, settings, knowledge, (items) => {
-                  setInquiries((current) => [...items, ...current]);
-                  setSelectedId(items[0]?.id ?? null);
-                  void saveInquiriesToDatabase(items);
-                })} />
-              </label>
-              <button className="secondary" style={{height:'32px',minHeight:'32px',padding:'0 13px',fontSize:'12px'}} disabled={!canExportCsv} onClick={() => exportCsv(inquiries)}>
-                CSV 내보내기
-              </button>
+            <div className="topbar-menu">
               <button
-                className="danger"
-                style={{height:'32px',minHeight:'32px',padding:'0 13px',fontSize:'12px'}}
-                disabled={!canBulkDeleteInquiries}
-                onClick={() =>
-                  requestConfirm({
-                    title: "저장된 문의 전체 삭제",
-                    message: "현재 워크스페이스의 모든 문의가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
-                    confirmLabel: "전체 삭제",
-                    tone: "danger",
-                    onConfirm: clearInquiries,
-                  })
-                }
+                className="topbar-menu-trigger"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen((open) => !open)}
               >
-                초기화
+                더보기
+                <span aria-hidden>▾</span>
               </button>
-              <button className="primary" style={{height:'32px',minHeight:'32px',padding:'0 14px',fontSize:'12px'}} disabled={!canRunSetup} onClick={() => setWizardOpen(true)}>
-                초기 설정 마법사
-              </button>
-              <button className="secondary" style={{height:'32px',minHeight:'32px',padding:'0 13px',fontSize:'12px'}} onClick={() => void logout()}>
-                로그아웃
-              </button>
+              {menuOpen && (
+                <>
+                  <div className="topbar-menu-backdrop" onClick={() => setMenuOpen(false)} />
+                  <div className="topbar-menu-panel" role="menu">
+                    <label className="topbar-menu-item" role="menuitem">
+                      CSV 가져오기
+                      <input
+                        type="file"
+                        accept=".csv,text/csv"
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                          importCsv(e, settings, knowledge, (items) => {
+                            setInquiries((current) => [...items, ...current]);
+                            setSelectedId(items[0]?.id ?? null);
+                            void saveInquiriesToDatabase(items);
+                          });
+                          setMenuOpen(false);
+                        }}
+                      />
+                    </label>
+                    <button
+                      className="topbar-menu-item"
+                      disabled={!canExportCsv}
+                      onClick={() => { exportCsv(inquiries); setMenuOpen(false); }}
+                    >
+                      CSV 내보내기
+                    </button>
+                    <button
+                      className="topbar-menu-item"
+                      disabled={!canRunSetup}
+                      onClick={() => { setWizardOpen(true); setMenuOpen(false); }}
+                    >
+                      초기 설정 마법사
+                    </button>
+                    <div className="topbar-menu-divider" />
+                    <button
+                      className="topbar-menu-item danger"
+                      disabled={!canBulkDeleteInquiries}
+                      onClick={() => {
+                        setMenuOpen(false);
+                        requestConfirm({
+                          title: "저장된 문의 전체 삭제",
+                          message: "현재 워크스페이스의 모든 문의가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+                          confirmLabel: "전체 삭제",
+                          tone: "danger",
+                          onConfirm: clearInquiries,
+                        });
+                      }}
+                    >
+                      문의 전체 삭제
+                    </button>
+                    <button
+                      className="topbar-menu-item"
+                      onClick={() => { setMenuOpen(false); void logout(); }}
+                    >
+                      로그아웃
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </header>
 
-        <div className={`db-banner ${isLoading ? "loading" : ""}`}>{dbStatus}</div>
+        {dbStatus && (
+          <div className={`db-banner ${isLoading ? "loading" : ""}`} role="status">
+            {dbStatus}
+          </div>
+        )}
 
         {activeView === "inbox" && (
           <>

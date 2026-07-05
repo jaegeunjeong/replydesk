@@ -117,6 +117,74 @@ export function DetailPanel({
   // AI 초안이 어떤 지식베이스 소스를 참고했는지/무엇이 비었는지 (생성 옵션에 따라 달라짐).
   const sourceUsage = getKnowledgeSourceUsage(selected.category, knowledgeSource, aiOptions);
 
+  // 현재 상태와 부족 정보를 바탕으로 "지금 눌러야 할" 단일 주요 행동을 결정한다.
+  const primaryAction = getPrimaryAction();
+  function getPrimaryAction(): { label: string; hint: string; run: () => void } | null {
+    if (!selected || !canUpdate) return null;
+    const id = selected.id;
+    const missingCount = checklist.missing.length;
+    switch (selected.status) {
+      case "new":
+      case "info_requested":
+        if (missingCount > 0 && checklist.nextQuestion) {
+          return {
+            label: "부족한 정보 요청하기",
+            hint: `견적에 필요한 정보가 ${missingCount}개 부족합니다. 확인 질문을 답변 초안에 넣고 정보 요청 상태로 옮깁니다.`,
+            run: () => {
+              setReplyDraft((draft) => (draft.trim() ? `${draft}\n\n${checklist.nextQuestion}` : checklist.nextQuestion ?? ""));
+              onUpdateOperations(id, { status: "info_requested" }, "정보 요청");
+            },
+          };
+        }
+        return {
+          label: "견적 안내로 넘기기",
+          hint: "필요한 정보가 모였습니다. 견적을 안내하고 상태를 견적 안내로 옮깁니다.",
+          run: () => onUpdateOperations(id, { status: "quoted" }, "견적 안내"),
+        };
+      case "quoted":
+        return {
+          label: "예약금 안내하기",
+          hint: "견적을 전달했다면 예약금을 안내하고 입금을 기다립니다.",
+          run: () => onUpdateOperations(id, { status: "deposit_pending" }, "예약금 대기"),
+        };
+      case "deposit_pending":
+        return {
+          label: "입금 확인 → 예약 확정",
+          hint: "예약금이 입금되면 입금 시각을 기록하고 예약을 확정합니다.",
+          run: () =>
+            onUpdateOperations(
+              id,
+              { depositPaidAt: selected.depositPaidAt ?? new Date().toISOString(), status: "booked" },
+              "예약금 입금 확인",
+            ),
+        };
+      case "booked":
+        return {
+          label: "시술 완료로 변경",
+          hint: "예약이 확정된 상담입니다. 시술이 끝나면 완료로 바꿉니다.",
+          run: () => onUpdateOperations(id, { status: "completed" }, "시술 완료"),
+        };
+      case "completed":
+        return {
+          label: "리터치/관리로 전환",
+          hint: "시술이 끝났습니다. 리터치·관리 안내 단계로 옮깁니다.",
+          run: () => onUpdateOperations(id, { status: "aftercare" }, "리터치/관리"),
+        };
+      case "aftercare":
+        return {
+          label: "상담 종료 처리",
+          hint: "관리까지 마쳤다면 상담을 종료합니다.",
+          run: () => onUpdateOperations(id, { status: "closed" }, "상담 종료"),
+        };
+      case "closed":
+      default:
+        return null;
+    }
+  }
+  const nextStepFallbackHint = !canUpdate
+    ? "보기 전용입니다. 처리 권한이 있어야 다음 단계를 진행할 수 있습니다."
+    : "상담이 종료된 문의입니다.";
+
   return (
     <div className="detail-panel reply-workspace">
       {!canUpdate && <PermissionNotice title={updateLock.title} body={updateLock.body} />}
@@ -274,39 +342,29 @@ export function DetailPanel({
           >
             수정 저장
           </button>
-          <button
-            className="secondary"
-            disabled={!canUpdate || ["booked", "completed", "aftercare", "closed"].includes(selected.status)}
-            onClick={() => onUpdateOperations(selected.id, { status: "booked" }, "예약 확정")}
-          >
-            예약 확정
-          </button>
         </div>
       </section>
 
       <section className="next-step-card">
-        <div>
+        <div className="next-step-copy">
           <strong>다음 행동</strong>
-          <span>
-            {selected.status === "closed"
-              ? "상담이 종료된 문의입니다."
-              : selected.status === "booked"
-                ? "예약이 확정된 상담입니다. 시술 후 상태를 시술 완료로 바꾸세요."
-                : selected.status === "completed" || selected.status === "aftercare"
-                  ? "시술이 끝난 고객입니다. 관리 안내 후 상담 종료로 바꾸세요."
-                  : replyChanged
-                    ? "수정한 답변을 저장한 뒤 고객에게 복사해 보내세요."
-                    : "답변을 보낸 뒤 상태를 다음 단계(정보 요청·견적 안내·예약금 대기)로 옮기세요."}
-          </span>
+          <span>{primaryAction ? primaryAction.hint : nextStepFallbackHint}</span>
         </div>
-        <button
-          className="danger"
-          disabled={!canDelete}
-          title={!canDelete ? "삭제 권한 필요" : undefined}
-          onClick={() => onDelete(selected.id)}
-        >
-          문의 삭제
-        </button>
+        <div className="next-step-actions">
+          {primaryAction && (
+            <button className="primary next-step-primary" onClick={primaryAction.run}>
+              {primaryAction.label}
+            </button>
+          )}
+          <button
+            className="next-step-delete"
+            disabled={!canDelete}
+            title={!canDelete ? "삭제 권한 필요" : undefined}
+            onClick={() => onDelete(selected.id)}
+          >
+            문의 삭제
+          </button>
+        </div>
       </section>
       {!canDelete && <div className="delete-lock-note">{deleteLock.body}</div>}
 
