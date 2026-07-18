@@ -529,6 +529,46 @@ button:disabled {
   line-height: 1.5;
 }
 
+.topbar-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.topbar-workspace-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.topbar-workspace-pill.muted {
+  opacity: 0.6;
+}
+
+.queue-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.drawer-label {
+  margin: 4px 2px 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .session-controls {
   display: flex;
   gap: 10px;
@@ -1903,11 +1943,30 @@ select {
   justify-content: space-between;
 }
 
+/* 목록 패널: 제목 줄과 필터 줄을 세로로 쌓아 어긋남을 없앤다. */
+.inquiry-list-panel .panel-head {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
 .filter-row {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+/* 필터 3개를 한 줄에서 동일 너비로 정렬한다. */
+.inquiry-list-panel .filter-row {
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+}
+
+.inquiry-list-panel .filter-row select {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .inquiry-list {
@@ -3222,6 +3281,21 @@ select {
   .metrics,
   .customer-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* 상담 처리 화면: 목록과 상세를 세로로 스택 */
+  .inbox-workflow {
+    grid-template-columns: 1fr;
+  }
+
+  /* 오늘 처리할 상담 지표는 2열로 */
+  .brief-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* 새 문의 접수 폼은 1열로 */
+  .intake-form-grid {
+    grid-template-columns: 1fr;
   }
 
   .report-funnel-row {

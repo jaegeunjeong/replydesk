@@ -99,7 +99,6 @@ export function DetailPanel({
     return (
       <div className="detail-panel reply-workspace">
         <div className="empty-workflow">
-          <p className="eyebrow">Reply workflow</p>
           <h3>문의를 선택하세요</h3>
           <p>왼쪽 목록에서 문의를 선택하면 답변 초안, 분류 정보, 처리 이력이 여기에 표시됩니다.</p>
         </div>
@@ -190,7 +189,6 @@ export function DetailPanel({
       {!canUpdate && <PermissionNotice title={updateLock.title} body={updateLock.body} />}
       <div className="reply-hero">
         <div>
-          <p className="eyebrow">Selected inquiry</p>
           <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
             <span className="avatar-md">{selected.customer.charAt(0)}</span>
             <h3>{selected.customer}</h3>
@@ -368,6 +366,7 @@ export function DetailPanel({
       </section>
       {!canDelete && <div className="delete-lock-note">{deleteLock.body}</div>}
 
+      <p className="drawer-label">세부 관리</p>
       <div className="support-drawer">
         <details open>
           <summary>처리 정보</summary>
@@ -449,7 +448,7 @@ export function DetailPanel({
           </div>
         </details>
 
-        <details open>
+        <details open={checklist.missing.length > 0}>
           <summary>시술 정보</summary>
           <div className="ops-grid">
             <label>

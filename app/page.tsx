@@ -992,7 +992,6 @@ export default function ReplyDeskPage() {
             >
               <span className="nav-copy">
                 <strong>{view.label}</strong>
-                <small>{view.description}</small>
               </span>
               {view.key === "inbox" && sidebarOpen > 0 && <span>{sidebarOpen}</span>}
               {view.key === "customers" && customers.length > 0 && <span>{customers.length}</span>}
@@ -1012,14 +1011,15 @@ export default function ReplyDeskPage() {
 
       <main className="workspace">
         <header className="topbar">
-          <div>
-            <p className="eyebrow">InkDesk</p>
+          <div className="topbar-heading">
             <h2>{activeViewMeta.label}</h2>
-            <p className="workspace-note">
-              {activeWorkspace
-                ? `${activeWorkspace.name} · ${businessProfiles[activeWorkspace.profile].label} · ${activeViewMeta.description}`
-                : "워크스페이스를 불러오는 중입니다."}
-            </p>
+            {activeWorkspace ? (
+              <span className="topbar-workspace-pill">
+                {activeWorkspace.name} · {businessProfiles[activeWorkspace.profile].label}
+              </span>
+            ) : (
+              <span className="topbar-workspace-pill muted">워크스페이스 불러오는 중…</span>
+            )}
           </div>
           <div className="actions" style={{display:'flex',alignItems:'center',gap:'10px'}}>
             <div className="session-controls">
@@ -1122,11 +1122,8 @@ export default function ReplyDeskPage() {
           <>
             <section className="inbox-brief" aria-label="오늘 처리할 문의">
               <div>
-                <p className="eyebrow">Today</p>
                 <h3>오늘 처리할 상담</h3>
-                <p>
-                  응대 필요 {counts.open}건 · 예약금 대기 {counts.deposit_pending}건 · 예약 확정 {counts.booked}건입니다.
-                </p>
+                <p>급한 문의부터 답변하고, 예약금 안내와 예약 확정까지 이어서 처리하세요.</p>
               </div>
               <div className="brief-metrics">
                 <Metric label="응대 필요" value={counts.open} />
@@ -1280,7 +1277,7 @@ export default function ReplyDeskPage() {
                 <div className="panel-head">
                   <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
                     <strong style={{fontSize:'15px',fontWeight:800}}>처리 대기</strong>
-                    <span className="badge category" style={{fontSize:'10.5px',fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase' as const}}>Queue</span>
+                    <span className="queue-count">{visibleInquiries.length}건</span>
                   </div>
                   <div className="filter-row">
                     <select
