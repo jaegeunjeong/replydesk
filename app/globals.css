@@ -3457,6 +3457,32 @@ select {
   }
   .mh-pill .d { width: 6px; height: 6px; border-radius: 999px; background: #e8a25a; }
 
+  /* — detail segmented control (답변 · 정보 · 이력) — */
+  .mh-segmented {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+    margin-top: 12px;
+    padding: 3px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 11px;
+  }
+  .mh-segmented button {
+    padding: 8px 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #b7c8c3;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .mh-segmented button.active {
+    background: #f6f3ec;
+    color: #0d1b19;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.16);
+  }
+
   /* — inbox master / detail toggle — */
   .inbox-workflow { grid-template-columns: 1fr; gap: 0; }
   .inbox-workflow .detail-panel { display: none; }
@@ -3608,6 +3634,17 @@ select {
 
   /* — inquiry detail: stack the 확인됨/부족함 groups — */
   .consult-check-groups { grid-template-columns: 1fr; }
+
+  /* — detail segmented tabs: show only the active group's sections — */
+  .drawer-label { display: none; }
+  .detail-panel[data-detail-tab="reply"] [data-detail-group="info"],
+  .detail-panel[data-detail-tab="reply"] [data-detail-group="history"],
+  .detail-panel[data-detail-tab="info"] [data-detail-group="reply"],
+  .detail-panel[data-detail-tab="info"] [data-detail-group="history"],
+  .detail-panel[data-detail-tab="history"] [data-detail-group="reply"],
+  .detail-panel[data-detail-tab="history"] [data-detail-group="info"] {
+    display: none;
+  }
 
   /* — setup wizard: reclaim space, declutter the step bar — */
   .wizard-backdrop { padding: 8px; }

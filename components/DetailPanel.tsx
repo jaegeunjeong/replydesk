@@ -9,6 +9,7 @@ import { Meta, PermissionNotice } from "@/components/shared";
 
 export function DetailPanel({
   selected,
+  detailTab,
   inquiries,
   members,
   onCopy,
@@ -29,6 +30,7 @@ export function DetailPanel({
   deleteLock,
 }: {
   selected: Inquiry | null;
+  detailTab: "reply" | "info" | "history";
   inquiries: Inquiry[];
   members: WorkspaceMember[];
   onCopy: () => void;
@@ -185,9 +187,9 @@ export function DetailPanel({
     : "상담이 종료된 문의입니다.";
 
   return (
-    <div className="detail-panel reply-workspace">
+    <div className="detail-panel reply-workspace" data-detail-tab={detailTab}>
       {!canUpdate && <PermissionNotice title={updateLock.title} body={updateLock.body} />}
-      <div className="reply-hero">
+      <div className="reply-hero" data-detail-group="reply">
         <div>
           <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
             <span className="avatar-md">{selected.customer.charAt(0)}</span>
@@ -202,7 +204,7 @@ export function DetailPanel({
         </div>
       </div>
 
-      <section className="consult-check-card">
+      <section className="consult-check-card" data-detail-group="reply">
         <div className="section-title-row">
           <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
             <span style={{width:'6px',height:'6px',borderRadius:'999px',background:'#b87d14',flexShrink:0}}></span>
@@ -260,7 +262,7 @@ export function DetailPanel({
         )}
       </section>
 
-      <section className="reply-card">
+      <section className="reply-card" data-detail-group="reply">
         <div className="section-title-row">
           <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
             <span style={{width:'6px',height:'6px',borderRadius:'999px',background:'#0d7369',flexShrink:0}}></span>
@@ -343,7 +345,7 @@ export function DetailPanel({
         </div>
       </section>
 
-      <section className="next-step-card">
+      <section className="next-step-card" data-detail-group="reply">
         <div className="next-step-copy">
           <strong>다음 행동</strong>
           <span>{primaryAction ? primaryAction.hint : nextStepFallbackHint}</span>
@@ -368,7 +370,7 @@ export function DetailPanel({
 
       <p className="drawer-label">세부 관리</p>
       <div className="support-drawer">
-        <details open>
+        <details open data-detail-group="info">
           <summary>처리 정보</summary>
           <div className="ops-grid">
             <label>
@@ -448,7 +450,7 @@ export function DetailPanel({
           </div>
         </details>
 
-        <details open={checklist.missing.length > 0}>
+        <details open={checklist.missing.length > 0} data-detail-group="info">
           <summary>시술 정보</summary>
           <div className="ops-grid">
             <label>
@@ -632,7 +634,7 @@ export function DetailPanel({
           </div>
         </details>
 
-        <details open={selected.status === "deposit_pending" || selected.status === "booked"}>
+        <details open={selected.status === "deposit_pending" || selected.status === "booked"} data-detail-group="info">
           <summary>예약금 · 예약 확정</summary>
           <div className="deposit-status-row">
             {selected.depositPaidAt ? (
@@ -727,7 +729,7 @@ export function DetailPanel({
           </div>
         </details>
 
-        <details>
+        <details data-detail-group="history">
           <summary>분류와 품질</summary>
           <div className="meta-grid">
             <Meta label="채널" value={selected.channel} />
@@ -767,7 +769,7 @@ export function DetailPanel({
           </div>
         </details>
 
-        <details>
+        <details data-detail-group="history">
           <summary>이력</summary>
           <div className="timeline-list">
             {timeline.map((item) => (

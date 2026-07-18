@@ -143,6 +143,7 @@ export default function ReplyDeskPage() {
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [mobileIntakeOpen, setMobileIntakeOpen] = useState(false);
+  const [detailTab, setDetailTab] = useState<"reply" | "info" | "history">("reply");
   const [wizardStep, setWizardStep] = useState(1);
   const [wizardDraft, setWizardDraft] = useState<OnboardingDraft>(() => createOnboardingDraft(defaultSettings));
   const [memberDraft, setMemberDraft] = useState({ name: "", email: "", role: "member" as WorkspaceRole });
@@ -186,6 +187,11 @@ export default function ReplyDeskPage() {
     return () => {
       cancelled = true;
     };
+  }, [selectedId]);
+
+  // 다른 문의를 선택하면 상세 세그먼트 탭을 답변으로 되돌린다. (모바일)
+  useEffect(() => {
+    setDetailTab("reply");
   }, [selectedId]);
 
   // 저장·불러오기 안내 문구는 잠깐 보여준 뒤 자동으로 사라지게 한다. (불러오는 중일 때는 유지)
@@ -987,15 +993,22 @@ export default function ReplyDeskPage() {
     <div className={`app-shell ${mobileDetailOpen ? "in-detail" : ""}`}>
       <header className="mobile-header">
         {mobileDetailOpen ? (
-          <div className="mh-top">
-            <div className="mh-title">
-              <button className="mh-back" aria-label="목록으로" onClick={() => setSelectedId(null)}>‹</button>
-              <h2>{selected?.customer}</h2>
+          <>
+            <div className="mh-top">
+              <div className="mh-title">
+                <button className="mh-back" aria-label="목록으로" onClick={() => setSelectedId(null)}>‹</button>
+                <h2>{selected?.customer}</h2>
+              </div>
+              {selected && (
+                <span className={`badge ${selected.priority === "긴급" ? "urgent" : ""}`}>{selected.priority}</span>
+              )}
             </div>
-            {selected && (
-              <span className={`badge ${selected.priority === "긴급" ? "urgent" : ""}`}>{selected.priority}</span>
-            )}
-          </div>
+            <div className="mh-segmented" role="tablist">
+              <button role="tab" aria-selected={detailTab === "reply"} className={detailTab === "reply" ? "active" : ""} onClick={() => setDetailTab("reply")}>답변</button>
+              <button role="tab" aria-selected={detailTab === "info"} className={detailTab === "info" ? "active" : ""} onClick={() => setDetailTab("info")}>정보</button>
+              <button role="tab" aria-selected={detailTab === "history"} className={detailTab === "history" ? "active" : ""} onClick={() => setDetailTab("history")}>이력</button>
+            </div>
+          </>
         ) : (
           <>
             <div className="mh-top">
@@ -1369,6 +1382,7 @@ export default function ReplyDeskPage() {
 
               <DetailPanel
                 selected={selected}
+                detailTab={detailTab}
                 inquiries={inquiries}
                 members={members}
                 onCopy={() => selected && navigator.clipboard.writeText(selected.reply)}
