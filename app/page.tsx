@@ -140,6 +140,9 @@ export default function ReplyDeskPage() {
   const [dbStatus, setDbStatus] = useState("상담 정보를 준비하고 있어요.");
   const [wizardOpen, setWizardOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const [intakeOpen, setIntakeOpen] = useState(false);
+  const [mobileIntakeOpen, setMobileIntakeOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
   const [wizardDraft, setWizardDraft] = useState<OnboardingDraft>(() => createOnboardingDraft(defaultSettings));
   const [memberDraft, setMemberDraft] = useState({ name: "", email: "", role: "member" as WorkspaceRole });
@@ -275,6 +278,7 @@ export default function ReplyDeskPage() {
     setInquiries((current) => [...created, ...current]);
     setSelectedId(created[0]?.id ?? null);
     setInputText("");
+    setMobileIntakeOpen(false);
     void saveInquiriesToDatabase(created);
   }
 
@@ -291,6 +295,7 @@ export default function ReplyDeskPage() {
     setInquiries((current) => [...created, ...current]);
     setSelectedId(created[0].id);
     setQuickDraft({ customer: "", channel: "인스타 DM", message: "" });
+    setMobileIntakeOpen(false);
     void saveInquiriesToDatabase(created);
   }
 
@@ -315,6 +320,7 @@ export default function ReplyDeskPage() {
     setInquiries((current) => [...created, ...current]);
     setSelectedId(created[0].id);
     setFormDraft({ customer: "", channel: "인스타 DM", message: "", tattooArea: "", tattooSize: "", tattooStyle: "", isCoverup: false, preferredDate: "", hasReferenceImage: false });
+    setMobileIntakeOpen(false);
     void saveInquiriesToDatabase(created);
   }
 
@@ -548,7 +554,9 @@ export default function ReplyDeskPage() {
       setInquiries(inquiriesPayload.inquiries ?? []);
       setCustomers(customersPayload.customers ?? []);
       setMembers(membersPayload.members ?? []);
-      setSelectedId(inquiriesPayload.inquiries?.[0]?.id ?? null);
+      // 모바일에서는 목록 화면부터 보여준다 (첫 문의를 자동 선택하면 상세로 바로 진입함).
+      const preferListFirst = typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+      setSelectedId(preferListFirst ? null : (inquiriesPayload.inquiries?.[0]?.id ?? null));
       setWizardDraft(createOnboardingDraft(nextSettings));
       if (!localStorage.getItem(ONBOARDING_KEY)) setWizardOpen(true);
       setDbStatus("상담 정보를 불러왔어요.");
@@ -973,8 +981,41 @@ export default function ReplyDeskPage() {
     );
   }
 
+  const mobileDetailOpen = activeView === "inbox" && !!selected;
+
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${mobileDetailOpen ? "in-detail" : ""}`}>
+      <header className="mobile-header">
+        {mobileDetailOpen ? (
+          <div className="mh-top">
+            <div className="mh-title">
+              <button className="mh-back" aria-label="목록으로" onClick={() => setSelectedId(null)}>‹</button>
+              <h2>{selected?.customer}</h2>
+            </div>
+            {selected && (
+              <span className={`badge ${selected.priority === "긴급" ? "urgent" : ""}`}>{selected.priority}</span>
+            )}
+          </div>
+        ) : (
+          <>
+            <div className="mh-top">
+              <div className="mh-title">
+                <h2>{activeViewMeta.label}</h2>
+              </div>
+              <span className="mh-avatar">{activeUserName.charAt(0)}</span>
+            </div>
+            {activeWorkspace && (
+              <div className="mh-sub">
+                <span className="mh-pill">
+                  <span className="d" />
+                  {activeWorkspace.name} · {businessProfiles[activeWorkspace.profile].label}
+                </span>
+              </div>
+            )}
+          </>
+        )}
+      </header>
+
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-mark">I</div>
@@ -1133,8 +1174,17 @@ export default function ReplyDeskPage() {
               </div>
             </section>
 
-            <section className="quick-intake">
-              <details>
+            <section className={`quick-intake ${mobileIntakeOpen ? "as-sheet" : ""}`}>
+              {mobileIntakeOpen && (
+                <>
+                  <span className="sheet-handle" />
+                  <div className="sheet-title">
+                    <strong>새 문의 접수</strong>
+                    <button className="sheet-close" aria-label="닫기" onClick={() => setMobileIntakeOpen(false)}>×</button>
+                  </div>
+                </>
+              )}
+              <details open={intakeOpen} onToggle={(e) => setIntakeOpen((e.target as HTMLDetailsElement).open)}>
                 <summary>
                   <span>
                     <strong>새 문의 접수</strong>
@@ -1430,6 +1480,101 @@ export default function ReplyDeskPage() {
 
       {confirmAction && (
         <ConfirmDialog action={confirmAction} onCancel={() => setConfirmAction(null)} onConfirm={confirmPendingAction} />
+      )}
+
+      {/* ── Mobile: FAB, bottom tab bar, sheets (hidden on desktop via CSS) ── */}
+      {activeView === "inbox" && (
+        <button
+          className="mobile-fab"
+          aria-label="새 문의 접수"
+          onClick={() => { setIntakeOpen(true); setMobileIntakeOpen(true); }}
+        >
+          +
+        </button>
+      )}
+
+      {mobileIntakeOpen && <div className="mobile-scrim" onClick={() => setMobileIntakeOpen(false)} />}
+
+      <nav className="mobile-tabbar" aria-label="주요 메뉴">
+        <button className={`mtab ${activeView === "inbox" ? "active" : ""}`} onClick={() => setActiveView("inbox")}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h16M4 12h16M4 19h10" /></svg>
+          <span>상담 처리</span>
+        </button>
+        <button className={`mtab ${activeView === "customers" ? "active" : ""}`} onClick={() => setActiveView("customers")}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="3.4" /><path d="M5 20c0-3.4 3.1-5.6 7-5.6s7 2.2 7 5.6" /></svg>
+          <span>고객</span>
+        </button>
+        <button className={`mtab ${activeView === "report" ? "active" : ""}`} onClick={() => setActiveView("report")}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 19V10M12 19V5M19 19v-6" /></svg>
+          <span>리포트</span>
+        </button>
+        <button
+          className={`mtab ${activeView === "knowledge" || activeView === "settings" || activeView === "members" ? "active" : ""}`}
+          onClick={() => setMobileMoreOpen(true)}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><circle cx="6" cy="12" r="1.4" /><circle cx="12" cy="12" r="1.4" /><circle cx="18" cy="12" r="1.4" /></svg>
+          <span>더보기</span>
+        </button>
+      </nav>
+
+      {mobileMoreOpen && (
+        <>
+          <div className="mobile-scrim" onClick={() => setMobileMoreOpen(false)} />
+          <div className="mobile-more-sheet" role="menu">
+            <span className="sheet-handle" />
+            <button className={`more-item ${activeView === "knowledge" ? "active" : ""}`} onClick={() => { setActiveView("knowledge"); setMobileMoreOpen(false); }}>견적/안내</button>
+            <button className={`more-item ${activeView === "settings" ? "active" : ""}`} onClick={() => { setActiveView("settings"); setMobileMoreOpen(false); }}>운영 설정</button>
+            <button className={`more-item ${activeView === "members" ? "active" : ""}`} onClick={() => { setActiveView("members"); setMobileMoreOpen(false); }}>팀 관리</button>
+            {userWorkspaces.length > 1 && (
+              <>
+                <div className="more-divider" />
+                <div className="more-ws">
+                  <label>워크스페이스</label>
+                  <select value={selectedWorkspaceId} onChange={(e) => { void changeWorkspace(e.target.value); setMobileMoreOpen(false); }}>
+                    {userWorkspaces.map((ws) => <option key={ws.id} value={ws.id}>{ws.name}</option>)}
+                  </select>
+                </div>
+              </>
+            )}
+            <div className="more-divider" />
+            <label className="more-item">
+              CSV 가져오기
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  importCsv(e, settings, knowledge, (items) => {
+                    setInquiries((current) => [...items, ...current]);
+                    setSelectedId(items[0]?.id ?? null);
+                    void saveInquiriesToDatabase(items);
+                  });
+                  setMobileMoreOpen(false);
+                }}
+              />
+            </label>
+            <button className="more-item" disabled={!canExportCsv} onClick={() => { exportCsv(inquiries); setMobileMoreOpen(false); }}>CSV 내보내기</button>
+            <button className="more-item" disabled={!canRunSetup} onClick={() => { setWizardOpen(true); setMobileMoreOpen(false); }}>초기 설정 마법사</button>
+            <button
+              className="more-item danger"
+              disabled={!canBulkDeleteInquiries}
+              onClick={() => {
+                setMobileMoreOpen(false);
+                requestConfirm({
+                  title: "저장된 문의 전체 삭제",
+                  message: "현재 워크스페이스의 모든 문의가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+                  confirmLabel: "전체 삭제",
+                  tone: "danger",
+                  onConfirm: clearInquiries,
+                });
+              }}
+            >
+              문의 전체 삭제
+            </button>
+            <div className="more-divider" />
+            <button className="more-item danger" onClick={() => { setMobileMoreOpen(false); void logout(); }}>로그아웃</button>
+          </div>
+        </>
       )}
     </div>
   );

@@ -3393,6 +3393,248 @@ select {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   Mobile shell (<768px) — reuses desktop components, adds phone
+   navigation (bottom tab bar, master/detail, header, FAB sheet).
+   Desktop (>=768px) is untouched: these elements are display:none.
+   ═══════════════════════════════════════════════════════════════ */
+
+.mobile-header,
+.mobile-tabbar,
+.mobile-fab,
+.mobile-scrim,
+.mobile-more-sheet { display: none; }
+
+@media (max-width: 767px) {
+  /* — hide desktop chrome — */
+  .sidebar { display: none; }
+  .workspace > .topbar { display: none; }
+
+  .app-shell {
+    grid-template-columns: 1fr;
+    background: var(--bg);
+  }
+  .workspace {
+    padding: 14px 14px calc(84px + env(safe-area-inset-bottom, 0px));
+    gap: 14px;
+  }
+
+  /* — mobile header (deep green, edge to edge) — */
+  .mobile-header {
+    display: block;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: linear-gradient(165deg, #22423b 0%, #0d1b19 92%);
+    color: #f4f1e8;
+    padding: 12px 16px 14px;
+  }
+  .mobile-header::after {
+    content: "";
+    position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(214, 137, 58, 0.5), transparent);
+  }
+  .mh-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .mh-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .mh-title h2 {
+    margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.02em; color: #f4f1e8;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .mh-back {
+    width: 34px; height: 34px; border-radius: 10px; flex: none;
+    display: grid; place-items: center; color: #f4f1e8; font-size: 22px; line-height: 1;
+    background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.14);
+  }
+  .mh-avatar {
+    width: 34px; height: 34px; border-radius: 999px; flex: none;
+    display: grid; place-items: center; font-weight: 800; font-size: 14px; color: #0d1b19;
+    background: linear-gradient(135deg, #e8a25a, #c27024);
+  }
+  .mh-sub { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .mh-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 11px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    color: #cfe0dc; background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+  .mh-pill .d { width: 6px; height: 6px; border-radius: 999px; background: #e8a25a; }
+
+  /* — inbox master / detail toggle — */
+  .inbox-workflow { grid-template-columns: 1fr; gap: 0; }
+  .inbox-workflow .detail-panel { display: none; }
+  .app-shell.in-detail .inbox-workflow .inquiry-list-panel { display: none; }
+  .app-shell.in-detail .inbox-workflow .detail-panel { display: block; }
+  .app-shell.in-detail .inbox-brief,
+  .app-shell.in-detail .quick-intake { display: none; }
+  .app-shell.in-detail .mobile-tabbar,
+  .app-shell.in-detail .mobile-fab { display: none; }
+
+  .detail-panel { padding: 2px 0 0; }
+  .inquiry-list { max-height: none; overflow: visible; padding-right: 0; }
+
+  /* — fluid full-width blocks (stop side-by-side squeeze) — */
+  .inbox-brief {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    padding: 16px 18px;
+  }
+  .brief-metrics { width: 100%; }
+  .reply-hero {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 18px;
+  }
+  .reply-status-stack { justify-content: flex-start; }
+  .reply-card,
+  .consult-check-card,
+  .next-step-card { padding: 16px 18px; }
+
+  /* — smooth list <-> detail transition — */
+  @keyframes mobile-detail-in {
+    from { opacity: 0; transform: translateX(10px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes mobile-list-in {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: none; }
+  }
+  .app-shell.in-detail .inbox-workflow .detail-panel {
+    animation: mobile-detail-in 0.22s cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+  .app-shell:not(.in-detail) .inbox-workflow .inquiry-list-panel {
+    animation: mobile-list-in 0.2s cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .app-shell.in-detail .inbox-workflow .detail-panel,
+    .app-shell:not(.in-detail) .inbox-workflow .inquiry-list-panel { animation: none; }
+  }
+
+  /* — bottom tab bar — */
+  .mobile-tabbar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 25;
+    height: calc(62px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: linear-gradient(180deg, #16302b, #0d1b19);
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+  }
+  .mtab {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    color: #83988f; background: transparent; border: 0; cursor: pointer;
+  }
+  .mtab.active { color: #e8a25a; }
+  .mtab svg { width: 22px; height: 22px; }
+  .mtab span { font-size: 10.5px; font-weight: 700; }
+  .mtab.active svg { filter: drop-shadow(0 0 6px rgba(232, 162, 90, 0.5)); }
+
+  /* — FAB — */
+  .mobile-fab {
+    display: grid; place-items: center;
+    position: fixed; right: 16px; z-index: 26;
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+    width: 54px; height: 54px; border-radius: 18px;
+    color: #fff; font-size: 28px; line-height: 1; border: 0; cursor: pointer;
+    background: linear-gradient(150deg, #e8a25a, #c27024);
+    box-shadow: 0 12px 22px -8px rgba(194, 112, 36, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  }
+
+  /* — shared scrim for sheets — */
+  .mobile-scrim {
+    display: block; position: fixed; inset: 0; z-index: 30;
+    background: rgba(10, 16, 15, 0.5);
+  }
+
+  /* — new-inquiry bottom sheet (reuses .quick-intake) — */
+  .quick-intake { display: none; }
+  .quick-intake.as-sheet {
+    display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 31;
+    max-height: 88vh; overflow: auto;
+    background: var(--bg); border-top-left-radius: 22px; border-top-right-radius: 22px;
+    padding: 8px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -18px 44px -20px rgba(0, 0, 0, 0.4);
+    animation: sheet-rise 0.24s cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+  @keyframes sheet-rise { from { transform: translateY(14px); opacity: 0.4; } to { transform: none; opacity: 1; } }
+  .quick-intake.as-sheet details { border: 0; background: transparent; }
+  .quick-intake.as-sheet summary { display: none; }
+  .quick-intake.as-sheet details > div { display: block; }
+  .sheet-handle {
+    display: block; width: 40px; height: 5px; border-radius: 999px;
+    background: #d6cfbf; margin: 4px auto 12px;
+  }
+  .sheet-title { display: flex; align-items: center; justify-content: space-between; margin: 0 0 12px; }
+  .sheet-title strong { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
+  .sheet-close {
+    width: 32px; height: 32px; border-radius: 9px; border: 1px solid var(--line);
+    background: #fff; color: var(--muted); font-size: 17px; cursor: pointer;
+  }
+
+  /* — 더보기 sheet — */
+  .mobile-more-sheet {
+    display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 31;
+    max-height: 84vh; overflow: auto;
+    background: var(--bg); border-top-left-radius: 22px; border-top-right-radius: 22px;
+    padding: 8px 12px calc(18px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -18px 44px -20px rgba(0, 0, 0, 0.4);
+    animation: sheet-rise 0.24s cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+  .more-item {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    padding: 14px 12px; border: 0; border-radius: 11px; background: transparent;
+    text-align: left; font-size: 15px; font-weight: 600; color: var(--text); cursor: pointer;
+  }
+  .more-item:active { background: var(--panel-subtle); }
+  .more-item.active { color: var(--primary); font-weight: 800; }
+  .more-item.danger { color: var(--danger); }
+  .more-item:disabled { opacity: 0.45; }
+  .more-divider { height: 1px; margin: 8px 10px; background: var(--line); }
+  .more-ws { padding: 10px 12px 4px; }
+  .more-ws label { display: block; font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
+  .more-ws select { width: 100%; }
+
+  /* — touch sizing — */
+  select:not(.status-select),
+  input:not([type="checkbox"]):not([type="radio"]),
+  .primary, .secondary { min-height: 44px; }
+  .status-select { min-height: 32px; height: 32px; }
+
+  /* — report view: collapse dense grids so cards breathe — */
+  .report-hero { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .report-hero-stat { padding: 15px 16px; }
+  .report-grid { grid-template-columns: 1fr; }
+  .report-rate-card { padding: 18px; }
+  .report-rate-sub { flex-wrap: wrap; gap: 10px 16px; }
+  .daily-report { gap: 14px; }
+
+  /* — inquiry detail: stack the 확인됨/부족함 groups — */
+  .consult-check-groups { grid-template-columns: 1fr; }
+
+  /* — setup wizard: reclaim space, declutter the step bar — */
+  .wizard-backdrop { padding: 8px; }
+  .wizard { padding: 16px; gap: 14px; max-height: 96vh; }
+  .wizard-head h2 { font-size: 19px; }
+  .wizard-steps { gap: 4px; }
+  .wizard-step { min-height: 40px; }
+  .wizard-step small { display: none; }
+
+  /* sticky next-action inside detail */
+  .next-step-card {
+    position: sticky;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    z-index: 5;
+    box-shadow: 0 -6px 20px -12px rgba(20, 30, 28, 0.35), 0 0 0 1px var(--line);
+  }
+
+  /* status toast: sit above the tab bar, full width */
+  .db-banner {
+    left: 14px;
+    right: 14px;
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    max-width: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
    Daily Report
    ═══════════════════════════════════════════════════════════════ */
 
